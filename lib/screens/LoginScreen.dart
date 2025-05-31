@@ -105,8 +105,9 @@ class _LoginTabState extends State<LoginTab> {
         await prefs.setString('userId', user['id'].toString());
         await prefs.setString('email', user['email']);
         await prefs.setString('name', user['name']);
-        await prefs.setString('phone', user['phone']);
-        await prefs.setString('gender', user['gender']);
+        await prefs.setString('phone', user['phone'] ?? '');
+        await prefs.setString('gender', user['gender'] ?? '');
+
         // await prefs.setString('phone', user['phone']);
         // await prefs.setString('gender', user['gender'] ?? '');
         // await prefs.setString('role', user['role'] ?? '');

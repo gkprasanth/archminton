@@ -2,6 +2,7 @@ import 'package:archminton/screens/BookScreen.dart';
 import 'package:archminton/screens/EventScreen.dart';
 import 'package:archminton/screens/LearnScreen.dart';
 import 'package:archminton/screens/LoginScreen.dart';
+import 'package:archminton/screens/Notification.dart';
 import 'package:archminton/screens/VenuScreen.dart';
 import 'package:flutter/material.dart' hide CarouselController;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -190,16 +191,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Center(
-                        child: Text(
-                          "Home",
-                          style: GoogleFonts.poppins(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Home",
+                            style: GoogleFonts.poppins(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
                           ),
-                        ),
+                          IconButton(
+                            icon: const Icon(Icons.notifications),
+                            color: Colors.black87,
+                            iconSize: 28,
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => const NotificationScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
+
                       const SizedBox(height: 24),
                       Text(
                         "Welcome, $userName 👋",

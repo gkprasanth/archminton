@@ -64,14 +64,13 @@ class _BookscreenState extends State<Bookscreen> {
         },
       );
 
-      if (!mounted) return; // Check again after async operation
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (mounted) {
           setState(() {
-            venues =
-                (data['data'] as List<dynamic>?)
+            venues = (data['data'] as List<dynamic>?)
                     ?.where((v) => v is Map<String, dynamic>)
                     .toList() ??
                 [];
@@ -100,20 +99,15 @@ class _BookscreenState extends State<Bookscreen> {
 
   List<dynamic> get filteredVenues {
     return venues.where((venue) {
-      final matchesSearch =
-          searchQuery.isEmpty ||
-          (venue["name"]?.toString().toLowerCase() ?? '').contains(
-            searchQuery.toLowerCase(),
-          ) ||
-          (venue["location"]?.toString().toLowerCase() ?? '').contains(
-            searchQuery.toLowerCase(),
-          );
+      final matchesSearch = searchQuery.isEmpty ||
+          (venue["name"]?.toString().toLowerCase() ?? '')
+              .contains(searchQuery.toLowerCase()) ||
+          (venue["location"]?.toString().toLowerCase() ?? '')
+              .contains(searchQuery.toLowerCase());
 
-      final matchesSport =
-          selectedSport.isEmpty ||
-          ((venue["availableSports"] as List<dynamic>? ?? []).contains(
-            selectedSport,
-          ));
+      final matchesSport = selectedSport.isEmpty ||
+          ((venue["availableSports"] as List<dynamic>? ?? [])
+              .contains(selectedSport));
 
       return matchesSearch && matchesSport;
     }).toList();
@@ -136,7 +130,7 @@ class _BookscreenState extends State<Bookscreen> {
               SliverAppBar(
                 floating: true,
                 pinned: true,
-                expandedHeight: 200,
+                expandedHeight: 160, // Reduced height
                 backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                 elevation: 0,
                 leading: IconButton(
@@ -146,28 +140,24 @@ class _BookscreenState extends State<Bookscreen> {
                 ),
                 flexibleSpace: FlexibleSpaceBar(
                   background: Padding(
-                    padding: const EdgeInsets.only(
-                      top: 80,
-                      left: 16,
-                      right: 16,
-                    ),
-                    child: Column(
+                    padding: const EdgeInsets.only(top: 60, left: 16, right: 16),
+                    child: Column (
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           'Find Your Perfect Venue',
                           style: TextStyle(
-                            fontSize: 28,
+                            fontSize: 24, // Reduced font size
                             fontWeight: FontWeight.bold,
                             color: Theme.of(context).primaryColor,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           'Explore a wide range of options',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14, // Reduced font size
                             color: Colors.black.withOpacity(0.6),
                           ),
                         ),
@@ -180,22 +170,22 @@ class _BookscreenState extends State<Bookscreen> {
                   style: TextStyle(
                     color: Colors.black87,
                     fontWeight: FontWeight.w600,
-                    fontSize: 20,
+                    fontSize: 18, // Reduced font size
                   ),
                 ),
               ),
 
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
+                          blurRadius: 8,
                           spreadRadius: 0,
                         ),
                       ],
@@ -208,25 +198,20 @@ class _BookscreenState extends State<Bookscreen> {
                           Icons.search,
                           color: Theme.of(context).primaryColor,
                         ),
-                        suffixIcon:
-                            searchQuery.isNotEmpty
-                                ? IconButton(
-                                  icon: const Icon(
-                                    Icons.clear,
-                                    color: Colors.grey,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      searchController.clear();
-                                      searchQuery = '';
-                                    });
-                                  },
-                                )
-                                : null,
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: Colors.grey),
+                                onPressed: () {
+                                  setState(() {
+                                    searchController.clear();
+                                    searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 15,
-                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onChanged: (query) => setState(() => searchQuery = query),
                     ),
@@ -236,7 +221,7 @@ class _BookscreenState extends State<Bookscreen> {
 
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 16.0, bottom: 16.0),
+                  padding: const EdgeInsets.only(left: 16.0, bottom: 12.0),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -254,9 +239,9 @@ class _BookscreenState extends State<Bookscreen> {
 
               if (isLoading)
                 SliverToBoxAdapter(
-                  child: Center(
+                  child: const Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32.0),
+                      padding: EdgeInsets.all(24.0),
                       child: CircularProgressIndicator(),
                     ),
                   ),
@@ -265,15 +250,15 @@ class _BookscreenState extends State<Bookscreen> {
                 SliverToBoxAdapter(
                   child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32.0),
+                      padding: const EdgeInsets.all(24.0),
                       child: Column(
                         children: [
-                          const Icon(Icons.error, size: 80, color: Colors.red),
-                          const SizedBox(height: 16),
+                          const Icon(Icons.error, size: 60, color: Colors.red),
+                          const SizedBox(height: 12),
                           Text(
                             errorMessage,
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               color: Colors.grey[700],
                             ),
                           ),
@@ -291,19 +276,19 @@ class _BookscreenState extends State<Bookscreen> {
                 SliverToBoxAdapter(
                   child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32.0),
+                      padding: const EdgeInsets.all(24.0),
                       child: Column(
                         children: [
                           const Icon(
                             Icons.search_off,
-                            size: 80,
+                            size: 60,
                             color: Colors.grey,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           Text(
                             'No venues found',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               color: Colors.grey[700],
                             ),
                           ),
@@ -334,24 +319,22 @@ class _BookscreenState extends State<Bookscreen> {
     final isSportSelected = sport == selectedSport;
 
     return GestureDetector(
-      onTap:
-          () => setState(() {
-            selectedSport = sport == 'All' ? '' : sport;
-          }),
+      onTap: () => setState(() {
+        selectedSport = sport == 'All' ? '' : sport;
+      }),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-        margin: const EdgeInsets.only(right: 10.0),
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+        margin: const EdgeInsets.only(right: 8.0),
         decoration: BoxDecoration(
-          color:
-              isAllSelected || isSportSelected
-                  ? Theme.of(context).primaryColor
-                  : Colors.grey[200],
-          borderRadius: BorderRadius.circular(30),
+          color: isAllSelected || isSportSelected
+              ? Theme.of(context).primaryColor
+              : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             if (isAllSelected || isSportSelected)
               BoxShadow(
                 color: Theme.of(context).primaryColor.withOpacity(0.3),
-                blurRadius: 8,
+                blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
           ],
@@ -359,11 +342,11 @@ class _BookscreenState extends State<Bookscreen> {
         child: Text(
           sport,
           style: TextStyle(
-            color:
-                isAllSelected || isSportSelected
-                    ? Colors.white
-                    : Colors.black87,
+            color: isAllSelected || isSportSelected
+                ? Colors.white
+                : Colors.black87,
             fontWeight: FontWeight.w500,
+            fontSize: 12, // Reduced font size
           ),
         ),
       ),
@@ -376,103 +359,78 @@ class _BookscreenState extends State<Bookscreen> {
             ? venue['images'][0]
             : null;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            offset: const Offset(0, 3),
-            blurRadius: 10,
-          ),
-        ],
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VenueScreen(venue: venue),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: CachedNetworkImage(
-              imageUrl: imageUrl ?? '',
-              height: 180,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder:
-                  (context, url) => Container(
-                    height: 180,
-                    color: Colors.grey[300],
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-              errorWidget:
-                  (context, url, error) => Container(
-                    height: 180,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.broken_image),
-                  ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              offset: const Offset(0, 2),
+              blurRadius: 8,
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        venue["name"] ?? 'Unnamed Venue',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl ?? '',
+                height: 120, // Reduced image height
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  height: 120,
+                  color: Colors.grey[300],
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  height: 120,
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.broken_image),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12.0), // Reduced padding
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    venue["name"] ?? 'Unnamed Venue',
+                    style: const TextStyle(
+                      fontSize: 16, // Reduced font size
+                      fontWeight: FontWeight.bold,
                     ),
-                     
-                  ],
-                ),
-                const SizedBox(height: 8),
-                _buildLocationRow(venue["location"] ?? 'No location'),
-                const SizedBox(height: 12),
-                Text(
-                  venue["description"] ?? 'No description available',
-                  style: const TextStyle(fontSize: 14),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 12),
-                _buildSportsChips(venue["availableSports"] ?? []),
-                const SizedBox(height: 12),
-                _buildBookButton(venue),
-              ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  _buildLocationRow(venue["location"] ?? 'No location'),
+                  const SizedBox(height: 8),
+                  Text(
+                    venue["description"] ?? 'No description available',
+                    style: const TextStyle(fontSize: 12), // Reduced font size
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildSportsChips(venue["availableSports"] ?? []),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRatingBadge(String rating) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.star, color: Colors.white, size: 16),
-          const SizedBox(width: 4),
-          Text(
-            rating,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -480,12 +438,12 @@ class _BookscreenState extends State<Bookscreen> {
   Widget _buildLocationRow(String location) {
     return Row(
       children: [
-        Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+        Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
         const SizedBox(width: 4),
         Expanded(
           child: Text(
             location,
-            style: TextStyle(color: Colors.grey[600]),
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -497,57 +455,21 @@ class _BookscreenState extends State<Bookscreen> {
   Widget _buildSportsChips(List<dynamic> sports) {
     final validSports = sports;
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children:
-          validSports
-              .take(3)
-              .map(
-                (sport) => Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    sport.toString(),
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
-                  ),
-                ),
-              )
-              .toList(),
-    );
-  }
-
-  Widget _buildBookButton(Map<String, dynamic> venue) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        ElevatedButton(
-          onPressed:
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => VenueScreen(venue: venue),
-                ),
+      spacing: 6,
+      runSpacing: 6,
+      children: validSports.take(3).map(
+            (sport) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(6),
               ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              child: Text(
+                sport.toString(),
+                style: const TextStyle(fontSize: 10, color: Colors.black87),
+              ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          ),
-          child: const Text(
-            'Book Now',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-      ],
+          ).toList(),
     );
   }
 }
@@ -556,12 +478,11 @@ void _exitScreen(BuildContext context) {
   if (Navigator.canPop(context)) {
     Navigator.pop(context);
   } else {
-    // Fallback to root route if navigation stack is empty
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
         builder: (context) => BottomNavBar(),
-      ), // Your root screen
+      ),
       (route) => false,
     );
   }

@@ -1,5 +1,9 @@
 import 'package:archminton/main.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+// Placeholder for BottomNavBar widget (replace with your actual implementation)
 
 class LearnScreen extends StatelessWidget {
   final List<Map<String, String>> sports = [
@@ -31,80 +35,90 @@ class LearnScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final greenColor = Colors.green[800]!;
-
-    // Generate list items with separators
-    final sliverChildren = <Widget>[];
-    for (int i = 0; i < sports.length; i++) {
-      sliverChildren.add(_buildSportCard(context, sports[i], greenColor));
-      if (i != sports.length - 1) {
-        sliverChildren.add(const SizedBox(height: 24)); // slightly bigger spacing
-      }
-    }
+    final accentColor = Colors.green[700]!;
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage("assets/images/bg.jpg"),
-            opacity: 0.05,
-            fit: BoxFit.cover,
-          ),
-        ),
+        color: Colors.green[50],
         child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
           slivers: [
             SliverAppBar(
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                color: Colors.white,
-                onPressed: () => Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(builder: (context) => BottomNavBar()),
-  ),
-                tooltip: 'Back',
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed:
+                    () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BottomNavBar(),
+                      ),
+                    ),
               ),
-              title: const Text(
-                'Sports Academy',
-                style: TextStyle(
+              title: Text(
+                "Sports Academy",
+                style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w700,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black26,
-                      blurRadius: 5,
-                      offset: Offset(1, 1),
+                  letterSpacing: -0.5,
+                  color: const Color.fromARGB(255, 46, 114, 48),
+                ),
+              ),
+              centerTitle: true,
+              backgroundColor: Colors.lightGreen,
+              pinned: true,
+              elevation: 8,
+              expandedHeight: 100,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', // Sports-related background image
+                      fit: BoxFit.cover,
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.3),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-              centerTitle: true,
-              backgroundColor: greenColor,
-              pinned: true,
-              elevation: 6,
-              // expandedHeight: 120,
-              flexibleSpace: FlexibleSpaceBar(
-                background: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(16),
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          greenColor.withOpacity(0.95),
-                          greenColor.withOpacity(0.75),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                child: Text(
+                  'Professional Training Programs',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green[900],
                   ),
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate(sliverChildren),
-              ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+                  child: _buildSportCard(
+                    context,
+                    sports[index],
+                    greenColor,
+                    accentColor,
+                  ),
+                );
+              }, childCount: sports.length),
             ),
           ],
         ),
@@ -115,103 +129,52 @@ class LearnScreen extends StatelessWidget {
   Widget _buildSportCard(
     BuildContext context,
     Map<String, String> sport,
-    Color themeColor,
+    Color primaryColor,
+    Color accentColor,
   ) {
-    return Material(
-      borderRadius: BorderRadius.circular(20),
-      elevation: 6,
-      shadowColor: Colors.black26,
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
+        onTap:
+            () => _showSelectionSnackbar(context, sport['name']!, primaryColor),
         borderRadius: BorderRadius.circular(20),
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: themeColor,
-              content: Text(
-                "${sport['name']} program selected!",
-                style: const TextStyle(color: Colors.white),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
               ),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          );
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: Colors.white,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
+              child: Stack(
                 children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
-                    child: Image.network(
-                      sport['image']!,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return Container(
-                          height: 200,
-                          color: Colors.green[50],
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              value: progress.expectedTotalBytes != null
-                                  ? progress.cumulativeBytesLoaded /
-                                      progress.expectedTotalBytes!
-                                  : null,
-                            ),
+                  CachedNetworkImage(
+                    imageUrl: sport['image']!,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder:
+                        (context, url) => Container(
+                          height: 180,
+                          color: Colors.grey[100],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
                           ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 200,
-                        color: Colors.grey[200],
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.sports_tennis,
-                              size: 50,
+                        ),
+                    errorWidget:
+                        (context, url, error) => Container(
+                          height: 180,
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: Icon(
+                              Icons.broken_image,
+                              size: 48,
                               color: Colors.grey,
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Image not available',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(20),
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.6),
-                          ],
-                        ),
-                      ),
-                    ),
+                    fadeInDuration: const Duration(milliseconds: 300),
                   ),
                   Positioned(
                     bottom: 16,
@@ -219,80 +182,104 @@ class LearnScreen extends StatelessWidget {
                     child: Text(
                       sport['name']!,
                       style: const TextStyle(
-                        fontSize: 26,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        letterSpacing: 0.6,
                         shadows: [
-                          Shadow(
-                            color: Colors.black54,
-                            offset: Offset(0, 1),
-                            blurRadius: 3,
-                          )
+                          Shadow(blurRadius: 10, color: Colors.black45),
                         ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'NEW',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      sport['description']!,
-                      style: TextStyle(
-                        fontSize: 17,
-                        color: Colors.grey[800],
-                        height: 1.5,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    sport['description']!,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.4,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          () => _showSelectionSnackbar(
+                            context,
+                            sport['name']!,
+                            primaryColor,
+                          ),
+                      icon: const Icon(Icons.sports, size: 20),
+                      label: const Text(
+                        'Join Training Program',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[700],
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 4,
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: themeColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          elevation: 3,
-                          shadowColor: Colors.black45,
-                        ),
-                        icon: const Icon(Icons.sports, size: 26),
-                        label: const Text(
-                          'Join Training Program',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: themeColor,
-                              content: Text(
-                                "${sport['name']} program selected!",
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSelectionSnackbar(BuildContext context, String sport, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: color,
+        content: Text(
+          "$sport program selected!",
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
           ),
         ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

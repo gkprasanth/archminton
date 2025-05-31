@@ -1,4 +1,5 @@
 import 'package:archminton/main.dart';
+import 'package:archminton/screens/profileoptions/FAQ.dart';
 import 'package:archminton/screens/profileoptions/MyBookings.dart';
 import 'package:archminton/screens/profileoptions/Support.dart';
 import 'package:flutter/material.dart';
@@ -36,22 +37,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');
-    // Navigate to login or home after logout
     if (context.mounted) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const MyApp()));
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MyApp()));
     }
   }
 
-  Widget buildProfileOption(IconData icon, String title, VoidCallback onTap, {Color iconColor = Colors.deepPurple}) {
+  Widget buildProfileOption(IconData icon, String title, VoidCallback onTap, {Color iconColor = Colors.green}) {
     return Card(
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(vertical: 6),
+      elevation: 1.5,
+      margin: const EdgeInsets.symmetric(vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: Icon(icon, color: iconColor),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        leading: Icon(icon, color: iconColor, size: 26),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: onTap,
+      ),
+    );
+  }
+
+  Widget buildIDCard() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade400, Colors.green.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 40,
+            backgroundImage: AssetImage('assets/images/herosection.jpg'),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                const SizedBox(height: 8),
+                Text('Phone: $phone', style: const TextStyle(color: Colors.white70)),
+                Text('Email: $email', style: const TextStyle(color: Colors.white70)),
+                Text('Gender: $gender', style: const TextStyle(color: Colors.white70)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -59,64 +105,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
+      backgroundColor: const Color(0xFFF2F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
-        title: const Text('Profile'),
+        backgroundColor: Colors.green.shade600,
+        title: const Text('My Profile'),
         centerTitle: true,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: ListView(
+        child: Column(
           children: [
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 40,
-                      backgroundImage: AssetImage('assets/images/herosection.jpg'),
-                      backgroundColor: Colors.grey,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Name: $name', style: const TextStyle(fontSize: 16)),
-                          const SizedBox(height: 8),
-                          Text('Phone: $phone', style: const TextStyle(fontSize: 16)),
-                          const SizedBox(height: 8),
-                          Text('Gender: $gender', style: const TextStyle(fontSize: 16)),
-                          const SizedBox(height: 8),
-                          Text('Email: $email', style: const TextStyle(fontSize: 16)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            buildIDCard(),
             const SizedBox(height: 30),
-            buildProfileOption(Icons.calendar_today, 'My Bookings', () {
+            buildProfileOption(Icons.calendar_today_rounded, 'My Bookings', () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const MyBookingsScreen()));
             }),
-            buildProfileOption(Icons.card_membership, 'Memberships', () {
-              // Navigate to memberships
+            buildProfileOption(Icons.card_membership_rounded, 'Memberships', () {
+              // TODO: Navigate to memberships
             }),
-            buildProfileOption(Icons.question_answer, 'FAQ', () {
-              // Navigate to FAQ
+            buildProfileOption(Icons.question_answer_rounded, 'FAQ', () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const FAQScreen()));
             }),
-            buildProfileOption(Icons.support_agent, 'Support', () {
+            buildProfileOption(Icons.support_agent_rounded, 'Support', () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const SupportScreen()));
             }),
-            buildProfileOption(Icons.info_outline, 'About', () {
-              // Navigate to About
+            buildProfileOption(Icons.info_outline_rounded, 'About', () {
+              // TODO: Navigate to About
             }),
             buildProfileOption(Icons.logout, 'Logout', () async {
               await _logout();

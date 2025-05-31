@@ -1,10 +1,10 @@
 import 'package:archminton/screens/BookScreen.dart';
 import 'package:archminton/screens/HomeScreen.dart';
 import 'package:archminton/screens/LearnScreen.dart';
- import 'package:archminton/screens/LoginScreen.dart';
+import 'package:archminton/screens/LoginScreen.dart';
 import 'package:archminton/screens/ProfileScreen.dart';
-import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -55,38 +55,88 @@ class BottomNavBar extends StatefulWidget {
 }
 
 class _BottomNavBarState extends State<BottomNavBar> {
-  int _currentIndex = 0;
+  late PersistentTabController _controller;
 
-  final List<Widget> _pages =  [
-    HomeScreen(),
-    Bookscreen(),
-    LearnScreen(),
-    ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _controller = PersistentTabController(initialIndex: 0);
+  }
+
+  List<Widget> _buildScreens() {
+    return [
+      const HomeScreen(),
+      const Bookscreen(),
+      LearnScreen(),
+      const ProfileScreen(),
+    ];
+  }
+
+  List<PersistentBottomNavBarItem> _navBarsItems() {
+    return [
+      PersistentBottomNavBarItem(
+        icon: const Icon(Icons.home_rounded),
+        title: "Home",
+        activeColorPrimary: Colors.green,
+        inactiveColorPrimary: Colors.grey,
+      ),
+      PersistentBottomNavBarItem(
+        icon: const Icon(Icons.calendar_today_rounded),
+        title: "Book",
+        activeColorPrimary: Colors.green,
+        inactiveColorPrimary: Colors.grey,
+      ),
+      PersistentBottomNavBarItem(
+        icon: const Icon(Icons.sports_tennis_rounded),
+        title: "Learn",
+        activeColorPrimary: Colors.green,
+        inactiveColorPrimary: Colors.grey,
+      ),
+      PersistentBottomNavBarItem(
+        icon: const Icon(Icons.person_rounded),
+        title: "Profile",
+        activeColorPrimary: Colors.green,
+        inactiveColorPrimary: Colors.grey,
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_currentIndex],
-      bottomNavigationBar: CurvedNavigationBar(
-        index: _currentIndex,
-        height: 60,
-        color: Colors.green,
-        buttonBackgroundColor: Colors.green,
-        backgroundColor: Colors.transparent,
-        animationCurve: Curves.easeInOut,
-        animationDuration: const Duration(milliseconds: 300),
-        items: const [
-          Icon(Icons.home_rounded, size: 26, color: Colors.white),
-          Icon(Icons.calendar_today_rounded, size: 26, color: Colors.white),
-          Icon(Icons.sports_tennis_rounded, size: 26, color: Colors.white),
-          Icon(Icons.person_rounded, size: 26, color: Colors.white),
+    return PersistentTabView(
+      context,
+      controller: _controller,
+      screens: _buildScreens(),
+      items: _navBarsItems(),
+      handleAndroidBackButtonPress: true,
+      resizeToAvoidBottomInset: true,
+      stateManagement: true,
+      hideNavigationBarWhenKeyboardAppears: true,
+      margin: const EdgeInsets.all(0.0),
+      bottomScreenMargin: 0.0,
+      backgroundColor: Colors.white,
+      decoration: NavBarDecoration(
+        borderRadius: BorderRadius.circular(10.0),
+        colorBehindNavBar: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
         ],
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+      ),
+      navBarStyle: NavBarStyle.style9, // Choose a style that suits your app
+      animationSettings: const NavBarAnimationSettings(
+        navBarItemAnimation: ItemAnimationSettings(
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ),
+        screenTransitionAnimation: ScreenTransitionAnimationSettings(
+          animateTabTransition: true,
+          curve: Curves.easeInOut,
+          duration: Duration(milliseconds: 300),
+        ),
       ),
     );
   }

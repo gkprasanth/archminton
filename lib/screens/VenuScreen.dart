@@ -237,20 +237,6 @@ class _VenueScreenState extends State<VenueScreen> {
             letterSpacing: -0.75,
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Icon(Icons.star, color: colors.secondary, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              '4.8 (156 reviews)',
-              style: GoogleFonts.poppins(
-                color: colors.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }
