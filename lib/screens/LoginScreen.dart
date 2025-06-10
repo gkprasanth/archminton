@@ -196,7 +196,7 @@ class _SignUpTabState extends State<SignUpTab> {
     }
 
     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-    final passwordRegex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$');
+    final passwordRegex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d).{8,}$');
     final phoneRegex = RegExp(r'^[\d+\-\s()]{7,15}$');
 
     if (!emailRegex.hasMatch(email)) {
