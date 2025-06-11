@@ -128,14 +128,14 @@ class _VenueScreenState extends State<VenueScreen> {
                         Icons.spa,
                         colors,
                       ),
-                      const SizedBox(height: 80),
+                      const SizedBox(height: 160), // Extra space for bottom nav + button
                     ]),
                   ),
                 ),
               ],
             ),
             Positioned(
-              bottom: 24,
+              bottom: 80, // Fixed position above bottom nav bar
               left: 24,
               right: 24,
               child: _buildBookButton(colors, venueId),

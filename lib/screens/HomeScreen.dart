@@ -259,6 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       sectionTitle("Sports Centers"),
                       const SizedBox(height: 12),
                       _buildVenuesSection(),
+                      const SizedBox(height: 80), // Add bottom padding for nav bar
                     ],
                   ),
                 ),

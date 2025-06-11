@@ -107,18 +107,21 @@ class LearnScreen extends StatelessWidget {
                 ),
               ),
             ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-                  child: _buildSportCard(
-                    context,
-                    sports[index],
-                    greenColor,
-                    accentColor,
-                  ),
-                );
-              }, childCount: sports.length),
+            SliverPadding(
+              padding: const EdgeInsets.only(bottom: 80), // Add bottom padding for nav bar
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+                    child: _buildSportCard(
+                      context,
+                      sports[index],
+                      greenColor,
+                      accentColor,
+                    ),
+                  );
+                }, childCount: sports.length),
+              ),
             ),
           ],
         ),

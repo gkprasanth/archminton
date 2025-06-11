@@ -114,6 +114,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
       hideNavigationBarWhenKeyboardAppears: true,
       margin: const EdgeInsets.all(0.0),
       bottomScreenMargin: 0.0,
+      confineToSafeArea: true,
       backgroundColor: Colors.white,
       decoration: NavBarDecoration(
         borderRadius: BorderRadius.circular(10.0),

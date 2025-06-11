@@ -299,7 +299,7 @@ class _BookscreenState extends State<Bookscreen> {
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 80), // Add bottom padding for nav bar
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final venue = filteredVenues[index];

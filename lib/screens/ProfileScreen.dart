@@ -380,6 +380,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
             ),
+            const SizedBox(height: 80), // Add bottom padding for nav bar
           ],
         ),
       ),
