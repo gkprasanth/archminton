@@ -4,12 +4,14 @@ import 'package:archminton/screens/LearnScreen.dart';
 import 'package:archminton/screens/LoginScreen.dart';
 import 'package:archminton/screens/Notification.dart';
 import 'package:archminton/screens/VenuScreen.dart';
-import 'package:flutter/material.dart' hide CarouselController;
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
 import '../constants/constants.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,9 +31,21 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   List<dynamic> venues = [];
+  List<dynamic> membershipRequests = [];
+  List<dynamic> bannerImages = [];
   bool isLoading = true;
+  bool isLoadingMemberships = true;
+  bool isLoadingBanners = true;
   bool hasError = false;
   String errorMessage = "";
+  
+
+
+  // Stock banner image - using single consistent image to prevent carousel crashes
+  final String stockBannerImage = 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'; // Basketball court
+  
+  // Create multiple slides with the same image for carousel effect
+  List<String> get stockBannerImages => List.generate(3, (index) => stockBannerImage);
 
   final Map<String, dynamic> dummyVenue = {
     "id": 1,
@@ -101,6 +115,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     fetchVenues();
+    fetchMembershipRequests();
+    fetchBannerImages();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> fetchVenues() async {
@@ -210,6 +231,137 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
   }
+
+  Future<void> fetchMembershipRequests() async {
+    print('🚀 Starting fetchMembershipRequests...');
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final accessToken = prefs.getString('accessToken');
+      
+      if (accessToken == null) {
+        print('❌ No access token found for membership requests');
+        if (!mounted) return;
+        setState(() {
+          isLoadingMemberships = false;
+        });
+        return;
+      }
+
+      final url = '$baseUrl/membership-requests';
+      print('🌐 Making membership API request to: $url');
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('📡 Membership API Response:');
+      print('   - Status Code: ${response.statusCode}');
+      print('   - Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Successfully parsed membership JSON response');
+        
+        if (!mounted) return;
+        setState(() {
+          membershipRequests = data is List ? data : (data['data'] ?? []);
+          isLoadingMemberships = false;
+        });
+        print('✅ Membership requests state updated successfully');
+      } else {
+        print('❌ Membership API request failed with status ${response.statusCode}');
+        if (!mounted) return;
+        setState(() {
+          isLoadingMemberships = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      print('💥 Exception in fetchMembershipRequests:');
+      print('   - Error: $e');
+      print('   - Stack trace: $stackTrace');
+      
+      if (!mounted) return;
+      setState(() {
+        isLoadingMemberships = false;
+      });
+    }
+  }
+
+  Future<void> fetchBannerImages() async {
+    print('🚀 Starting fetchBannerImages...');
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final accessToken = prefs.getString('accessToken');
+      
+      if (accessToken == null) {
+        print('❌ No access token found for banner images');
+        print('   - Using stock images as fallback');
+        if (!mounted) return;
+        setState(() {
+          bannerImages = stockBannerImages;
+          isLoadingBanners = false;
+        });
+        return;
+      }
+
+      final url = '$baseUrl/banners';
+      print('🌐 Making banner API request to: $url');
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('📡 Banner API Response:');
+      print('   - Status Code: ${response.statusCode}');
+      print('   - Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Successfully parsed banner JSON response');
+        
+        final apiImages = data is List ? data : (data['data'] ?? []);
+        
+        if (!mounted) return;
+        setState(() {
+          // Use API images if available, otherwise use stock images
+          bannerImages = apiImages.isNotEmpty ? apiImages : stockBannerImages;
+          isLoadingBanners = false;
+        });
+        print('✅ Banner images state updated successfully');
+      } else {
+        print('❌ Banner API request failed with status ${response.statusCode}');
+        print('   - Using stock images as fallback');
+        if (!mounted) return;
+        setState(() {
+          bannerImages = stockBannerImages;
+          isLoadingBanners = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      print('💥 Exception in fetchBannerImages:');
+      print('   - Error: $e');
+      print('   - Stack trace: $stackTrace');
+      print('   - Using stock images as fallback');
+      
+      if (!mounted) return;
+              setState(() {
+          bannerImages = stockBannerImages;
+          isLoadingBanners = false;
+        });
+            }
+  }
+
+
 
   Future<String?> _getUserName() async {
     final prefs = await SharedPreferences.getInstance();
@@ -369,7 +521,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      "Book courts, join events, and improve your game!",
+                                      "Book courts, play with friends, and improve your game!",
                                       style: GoogleFonts.poppins(
                                         fontSize: 14,
                                         color: Colors.white.withOpacity(0.9),
@@ -382,6 +534,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 24),
+                      _buildBannerCarousel(),
+                      const SizedBox(height: 24),
+                      _buildSubscriptionsSection(),
                       const SizedBox(height: 32),
                       sectionTitle("Explore"),
                       const SizedBox(height: 16),
@@ -502,6 +658,391 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+      Widget _buildBannerCarousel() {
+    return Container(
+      height: 200,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Image.network(
+          stockBannerImage,
+          width: double.infinity,
+          height: 200,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          },
+          errorBuilder: (_, __, ___) => _buildBannerPlaceholder(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBannerPlaceholder() {
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            Colors.blue.shade400,
+            Colors.purple.shade400,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.sports_tennis,
+              size: 48,
+              color: Colors.white.withOpacity(0.8),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "Sports Events & Activities",
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Stay updated with latest events",
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.9),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+
+  Widget _buildSubscriptionsSection() {
+    // Don't show anything if loading is complete and there are no memberships
+    if (!isLoadingMemberships && membershipRequests.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "SUBSCRIPTIONS",
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey[800],
+                letterSpacing: 0.5,
+              ),
+            ),
+            if (!isLoadingMemberships && membershipRequests.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  // Navigate to full subscriptions page
+                  // TODO: Implement navigation to subscriptions page
+                },
+                child: Text(
+                  "View All",
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green[600],
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSubscriptionsList(),
+      ],
+    );
+  }
+
+  Widget _buildSubscriptionsList() {
+    if (isLoadingMemberships) {
+      return Container(
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 140,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: membershipRequests.length,
+        itemBuilder: (context, index) {
+          final membership = membershipRequests[index];
+          return _buildSubscriptionCard(membership);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSubscriptionCard(Map<String, dynamic> membership) {
+    final status = membership['status'] ?? 'UNKNOWN';
+    final societyId = membership['societyId'];
+    final createdAt = membership['createdAt'];
+    final reviewNote = membership['reviewNote'];
+    
+    // Parse date
+    String dateText = 'Unknown Date';
+    if (createdAt != null) {
+      try {
+        final date = DateTime.parse(createdAt);
+        dateText = '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year.toString().substring(2)}';
+      } catch (e) {
+        print('Error parsing date: $e');
+      }
+    }
+
+    // Determine status color and text
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+    
+    switch (status.toUpperCase()) {
+      case 'PENDING':
+        statusColor = Colors.orange;
+        statusText = 'PENDING';
+        statusIcon = Icons.hourglass_empty;
+        break;
+      case 'APPROVED':
+        statusColor = Colors.green;
+        statusText = 'ACTIVE';
+        statusIcon = Icons.check_circle;
+        break;
+      case 'REJECTED':
+        statusColor = Colors.red;
+        statusText = 'REJECTED';
+        statusIcon = Icons.cancel;
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusText = 'INACTIVE';
+        statusIcon = Icons.help_outline;
+    }
+
+    return Container(
+      width: 280,
+      margin: const EdgeInsets.only(right: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: statusColor.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  "Swimming Coaching", // Default title, could be dynamic
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusText,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                Icons.person,
+                size: 16,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                "P Sathya Krishiv", // Could be dynamic from user data
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(
+                Icons.confirmation_number,
+                size: 16,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                "PSA${membership['id']?.toString().padLeft(5, '0') ?? '00000'}",
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                Icons.sports_tennis,
+                size: 16,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                "Swimming",
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Icon(
+                Icons.location_on,
+                size: 16,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  "Rainbow Vistas...", // Could be dynamic from society data
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    dateText,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              if (status.toUpperCase() == 'PENDING')
+                ElevatedButton(
+                  onPressed: () {
+                    // TODO: Implement renew functionality
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    "Renew",
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVenuesSection() {
     if (isLoading) {
       return const Center(
@@ -547,11 +1088,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   : null;
 
           // Handle both string and map-type image data
-          final imageUrl = imageData is String ? imageData : imageData?['url'];
+          final rawImageUrl = imageData is String ? imageData : imageData?['url'];
+          final imageUrl = _getFullImageUrl(rawImageUrl);
           
           // Debug image data
           print('🖼️ Venue: ${venue['name']} - Image data: $imageData');
-          print('🖼️ Extracted URL: $imageUrl');
+          print('🖼️ Raw URL: $rawImageUrl');
+          print('🖼️ Full URL: $imageUrl');
 
           return GestureDetector(
             onTap: () {
@@ -696,6 +1239,22 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       print('⚠️ Invalid image URL (parse error): $url - $e');
       return false;
+    }
+  }
+
+  String? _getFullImageUrl(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) return null;
+    
+    // If it's already a full URL, return as is
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    
+    // If it's a relative URL, construct full URL with base URL
+    if (imageUrl.startsWith('/')) {
+      return '$baseUrl$imageUrl';
+    } else {
+      return '$baseUrl/$imageUrl';
     }
   }
 }
