@@ -1,6 +1,7 @@
 import 'package:archminton/main.dart';
 import 'package:archminton/screens/profileoptions/FAQ.dart';
 import 'package:archminton/screens/profileoptions/MyBookings.dart';
+import 'package:archminton/screens/profileoptions/Memberships.dart';
 import 'package:archminton/screens/profileoptions/Support.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -173,7 +174,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     radius: 40,
                     backgroundImage: profileImagePath.isNotEmpty
                         ? FileImage(File(profileImagePath)) as ImageProvider
-                        : const AssetImage('assets/images/herosection.jpg'),
+                        : const AssetImage('assets/images/profile.png'),
                   ),
                   Positioned(
                     right: 0,
@@ -254,7 +255,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       radius: 50,
                       backgroundImage: profileImagePath.isNotEmpty
                           ? FileImage(File(profileImagePath)) as ImageProvider
-                          : const AssetImage('assets/images/herosection.jpg'),
+                          : const AssetImage('assets/images/profile.png'),
                     ),
                     Container(
                       padding: const EdgeInsets.all(4),
@@ -353,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const MyBookingsScreen()));
             }),
             buildProfileOption(Icons.card_membership_rounded, 'Memberships', () {
-              // TODO: Navigate to memberships
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const MembershipsScreen()));
             }),
             buildProfileOption(Icons.question_answer_rounded, 'FAQ', () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const FAQScreen()));
@@ -380,7 +381,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
             ),
-            const SizedBox(height: 80), // Add bottom padding for nav bar
+            const SizedBox(height: 20),
           ],
         ),
       ),

@@ -84,6 +84,9 @@ class _LoginTabState extends State<LoginTab> {
 
     try {
       final url = Uri.parse('$baseUrl/auth/login');
+      print('🔐 Starting login process...');
+      print('   - URL: $url');
+      print('   - Email: $email');
 
       final response = await http.post(
         url,
@@ -91,13 +94,24 @@ class _LoginTabState extends State<LoginTab> {
         body: jsonEncode({"email": email, "password": password}),
       );
 
+      print('📡 Login API Response:');
+      print('   - Status Code: ${response.statusCode}');
+      print('   - Response Body: ${response.body}');
+
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
+        print('✅ Login successful, processing response data...');
+        
         final user = data['data']['user'];
         final accessToken = data['data']['accessToken'];
         final refreshToken = data['data']['refreshToken'];
-        // final phoneNumber = data['data']['user'];
+        
+        print('👤 User data received:');
+        print('   - User: $user');
+        print('   - Access Token: ${accessToken != null ? "Present (${accessToken.length} chars)" : "NULL"}');
+        print('   - Refresh Token: ${refreshToken != null ? "Present (${refreshToken.length} chars)" : "NULL"}');
+        
         final prefs = await SharedPreferences.getInstance();
 
         await prefs.setString('accessToken', accessToken);
@@ -108,6 +122,15 @@ class _LoginTabState extends State<LoginTab> {
         await prefs.setString('phone', user['phone'] ?? '');
         await prefs.setString('gender', user['gender'] ?? '');
 
+        print('💾 Data saved to SharedPreferences:');
+        print('   - accessToken: ${await prefs.getString('accessToken') != null ? "Saved" : "FAILED"}');
+        print('   - refreshToken: ${await prefs.getString('refreshToken') != null ? "Saved" : "FAILED"}');
+        print('   - userId: ${await prefs.getString('userId')}');
+        print('   - email: ${await prefs.getString('email')}');
+        print('   - name: ${await prefs.getString('name')}');
+        print('   - phone: ${await prefs.getString('phone')}');
+        print('   - gender: ${await prefs.getString('gender')}');
+
         // await prefs.setString('phone', user['phone']);
         // await prefs.setString('gender', user['gender'] ?? '');
         // await prefs.setString('role', user['role'] ?? '');
@@ -117,18 +140,24 @@ class _LoginTabState extends State<LoginTab> {
         //   SnackBar(content: Text(data['message'] ?? "Login successful")),
         // );
 
+        print('🏠 Navigating to home screen...');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const BottomNavBar()),
         );
       } else {
+        print('❌ Login failed with status ${response.statusCode}');
         String errorMessage =
             data['error'] ?? data['message'] ?? "Login failed";
+        print('   - Error message: $errorMessage');
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(errorMessage)));
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('💥 Exception during login:');
+      print('   - Error: $e');
+      print('   - Stack trace: $stackTrace');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Something went wrong: $e")));

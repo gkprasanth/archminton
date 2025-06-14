@@ -49,6 +49,29 @@ class _VenueScreenState extends State<VenueScreen> {
     super.dispose();
   }
 
+  bool _isValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) return false;
+    
+    // Check if URL has a valid protocol
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      print('⚠️ Invalid image URL (no protocol): $url');
+      return false;
+    }
+    
+    // Check if URL has a host
+    try {
+      final uri = Uri.parse(url);
+      if (uri.host.isEmpty) {
+        print('⚠️ Invalid image URL (no host): $url');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      print('⚠️ Invalid image URL (parse error): $url - $e');
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final venue = widget.venue;
@@ -135,7 +158,7 @@ class _VenueScreenState extends State<VenueScreen> {
               ],
             ),
             Positioned(
-              bottom: 80, // Fixed position above bottom nav bar
+              bottom: 100, // Fixed position above bottom nav bar
               left: 24,
               right: 24,
               child: _buildBookButton(colors, venueId),
@@ -165,18 +188,68 @@ class _VenueScreenState extends State<VenueScreen> {
                   borderRadius: BorderRadius.circular(25),
                   child: Stack(
                     children: [
-                      Image.network(
-                        images[index],
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        errorBuilder:
-                            (_, __, ___) => Container(
-                              color: colors.surfaceVariant,
-                              child: const Center(
-                                child: Icon(Icons.broken_image, size: 40),
+                      images[index] != null && 
+                      images[index].isNotEmpty &&
+                      _isValidImageUrl(images[index])
+                          ? Image.network(
+                              images[index],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (_, __, ___) => Container(
+                                decoration: const BoxDecoration(
+                                  image: DecorationImage(
+                                    image: NetworkImage('https://images.unsplash.com/photo-1723633236252-eb7badabb34c?q=80&w=3024&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.black.withOpacity(0.3),
+                                        Colors.transparent,
+                                      ],
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                    ),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.sports_tennis,
+                                      color: Colors.white,
+                                      size: 40,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              decoration: const BoxDecoration(
+                                image: DecorationImage(
+                                  image: NetworkImage('https://images.unsplash.com/photo-1723633236252-eb7badabb34c?q=80&w=3024&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.black.withOpacity(0.3),
+                                      Colors.transparent,
+                                    ],
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                  ),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.sports_tennis,
+                                    color: Colors.white,
+                                    size: 40,
+                                  ),
+                                ),
                               ),
                             ),
-                      ),
                       DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(

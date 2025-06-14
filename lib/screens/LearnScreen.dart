@@ -46,13 +46,7 @@ class LearnScreen extends StatelessWidget {
             SliverAppBar(
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed:
-                    () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const BottomNavBar(),
-                      ),
-                    ),
+                onPressed: () => Navigator.pop(context),
               ),
               title: Text(
                 "Sports Academy",
@@ -108,7 +102,7 @@ class LearnScreen extends StatelessWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.only(bottom: 80), // Add bottom padding for nav bar
+              padding: const EdgeInsets.only(bottom: 20),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
                   return Padding(

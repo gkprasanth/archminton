@@ -299,7 +299,7 @@ class _BookscreenState extends State<Bookscreen> {
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 80), // Add bottom padding for nav bar
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final venue = filteredVenues[index];
@@ -358,6 +358,10 @@ class _BookscreenState extends State<Bookscreen> {
         (venue['images'] != null && venue['images'].isNotEmpty)
             ? venue['images'][0]
             : null;
+    
+    // Debug image data
+    print('🖼️ BookScreen - Venue: ${venue['name']} - Image data: ${venue['images']}');
+    print('🖼️ BookScreen - Extracted URL: $imageUrl');
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -384,22 +388,74 @@ class _BookscreenState extends State<Bookscreen> {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: CachedNetworkImage(
-                imageUrl: imageUrl ?? '',
-                height: 120, // Reduced image height
-                width: double.infinity,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  height: 120,
-                  color: Colors.grey[300],
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  height: 120,
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.broken_image),
-                ),
-              ),
+              child: imageUrl != null && imageUrl.isNotEmpty && _isValidImageUrl(imageUrl)
+                  ? CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        height: 120,
+                        color: Colors.grey[300],
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        height: 120,
+                        decoration: const BoxDecoration(
+                          image: DecorationImage(
+                            image: NetworkImage('https://images.unsplash.com/photo-1723633236252-eb7badabb34c?q=80&w=3024&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.black.withOpacity(0.3),
+                                Colors.transparent,
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.sports_tennis,
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      height: 120,
+                      decoration: const BoxDecoration(
+                        image: DecorationImage(
+                          image: NetworkImage('https://images.unsplash.com/photo-1723633236252-eb7badabb34c?q=80&w=3024&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withOpacity(0.3),
+                              Colors.transparent,
+                            ],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.sports_tennis,
+                            color: Colors.white,
+                            size: 40,
+                          ),
+                        ),
+                      ),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.all(12.0), // Reduced padding
@@ -472,6 +528,29 @@ class _BookscreenState extends State<Bookscreen> {
           ).toList(),
     );
   }
+
+  bool _isValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) return false;
+    
+    // Check if URL has a valid protocol
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      print('⚠️ Invalid image URL (no protocol): $url');
+      return false;
+    }
+    
+    // Check if URL has a host
+    try {
+      final uri = Uri.parse(url);
+      if (uri.host.isEmpty) {
+        print('⚠️ Invalid image URL (no host): $url');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      print('⚠️ Invalid image URL (parse error): $url - $e');
+      return false;
+    }
+  }
 }
 
 void _exitScreen(BuildContext context) {
@@ -481,7 +560,7 @@ void _exitScreen(BuildContext context) {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (context) => BottomNavBar(),
+        builder: (context) => const BottomNavBar(),
       ),
       (route) => false,
     );

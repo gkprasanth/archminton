@@ -10,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../constants/constants.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +20,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final String baseUrl = AppConstants.baseUrl;
+  
   final List<Map<String, String>> exploreItems = [
     {"text": "Learn", "image": "assets/images/explore-learn.jpg"},
     {"text": "Book and Play", "image": "assets/images/explore-book.jpg"},
@@ -101,13 +104,25 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> fetchVenues() async {
+    print('🚀 Starting fetchVenues...');
+    
     try {
       final prefs = await SharedPreferences.getInstance();
       final accessToken = prefs.getString('accessToken');
       final name = prefs.getString('user');
-      print(name);
+      final userId = prefs.getString('userId');
+      
+      print('📱 User data from SharedPreferences:');
+      print('   - name: $name');
+      print('   - userId: $userId');
+      print('   - accessToken: ${accessToken != null ? "Present (${accessToken.length} chars)" : "NULL"}');
+      
+      if (accessToken != null) {
+        print('   - Token preview: ${accessToken.substring(0, accessToken.length > 20 ? 20 : accessToken.length)}...');
+      }
 
       if (accessToken == null) {
+        print('❌ No access token found in SharedPreferences');
         if (!mounted) return;
         setState(() {
           hasError = true;
@@ -117,41 +132,82 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
+      final url = '$baseUrl/venues';
+      print('🌐 Making API request:');
+      print('   - URL: $url');
+      print('   - Headers: Authorization: Bearer ${accessToken.substring(0, 20)}...');
+      print('   - Headers: Content-Type: application/json');
+
       final response = await http.get(
-        Uri.parse('$baseUrl/venues'),
+        Uri.parse(url),
         headers: {
           'Authorization': 'Bearer $accessToken',
           'Content-Type': 'application/json',
         },
       );
 
+      print('📡 API Response received:');
+      print('   - Status Code: ${response.statusCode}');
+      print('   - Response Headers: ${response.headers}');
+      print('   - Response Body Length: ${response.body.length} characters');
+      print('   - Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('✅ Successfully parsed JSON response:');
+        print('   - Data type: ${data.runtimeType}');
+        print('   - Data keys: ${data is Map ? data.keys.toList() : "Not a Map"}');
+        
+        if (data is Map && data.containsKey('data')) {
+          print('   - Venues count: ${data['data']?.length ?? 0}');
+          print('   - Venues data: ${data['data']}');
+        } else {
+          print('   - Full data: $data');
+        }
+        
         if (!mounted) return;
         setState(() {
-          venues = data['data'];
+          venues = data['data'] ?? data; // Handle both formats
           isLoading = false;
           hasError = false;
         });
-        // print("Venues fetched successfully:");
-        // print(venues);
+        print('✅ Venues state updated successfully');
       } else {
+        print('❌ API request failed with status ${response.statusCode}');
+        print('   - Error response body: ${response.body}');
+        
+        // Try to parse error message from response
+        String detailedError = 'Failed to fetch venues: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData is Map) {
+            final message = errorData['message'] ?? errorData['error'] ?? errorData['detail'];
+            if (message != null) {
+              detailedError += ' - $message';
+            }
+          }
+        } catch (e) {
+          print('   - Could not parse error response as JSON: $e');
+        }
+        
         if (!mounted) return;
         setState(() {
           hasError = true;
           isLoading = false;
-          errorMessage = 'Failed to fetch venues: ${response.statusCode}';
+          errorMessage = detailedError;
         });
-        // print(response.body);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('💥 Exception in fetchVenues:');
+      print('   - Error: $e');
+      print('   - Stack trace: $stackTrace');
+      
       if (!mounted) return;
       setState(() {
         hasError = true;
         isLoading = false;
         errorMessage = 'Error fetching venues: $e';
       });
-      // print(errorMessage);
     }
   }
 
@@ -259,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       sectionTitle("Sports Centers"),
                       const SizedBox(height: 12),
                       _buildVenuesSection(),
-                      const SizedBox(height: 80), // Add bottom padding for nav bar
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -403,6 +459,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Handle both string and map-type image data
           final imageUrl = imageData is String ? imageData : imageData?['url'];
+          
+          // Debug image data
+          print('🖼️ Venue: ${venue['name']} - Image data: $imageData');
+          print('🖼️ Extracted URL: $imageUrl');
 
           return GestureDetector(
             onTap: () {
@@ -433,7 +493,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child:
-                        imageUrl != null
+                        imageUrl != null && _isValidImageUrl(imageUrl)
                             ? Image.network(
                               imageUrl,
                               height: 120,
@@ -493,16 +553,60 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildImagePlaceholder() {
+    // Use a nice stock sports facility image
     return Container(
       height: 120,
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Colors.grey[300],
+        image: const DecorationImage(
+          image: NetworkImage('https://images.unsplash.com/photo-1723633236252-eb7badabb34c?q=80&w=3024&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'),
+          fit: BoxFit.cover,
+        ),
       ),
-      child: Center(
-        child: Icon(Icons.broken_image, color: Colors.grey[500], size: 40),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              Colors.black.withOpacity(0.3),
+              Colors.transparent,
+            ],
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+          ),
+        ),
+        child: const Center(
+          child: Icon(
+            Icons.sports_tennis,
+            color: Colors.white,
+            size: 40,
+          ),
+        ),
       ),
     );
+  }
+
+  bool _isValidImageUrl(String? url) {
+    if (url == null || url.isEmpty) return false;
+    
+    // Check if URL has a valid protocol
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      print('⚠️ Invalid image URL (no protocol): $url');
+      return false;
+    }
+    
+    // Check if URL has a host
+    try {
+      final uri = Uri.parse(url);
+      if (uri.host.isEmpty) {
+        print('⚠️ Invalid image URL (no host): $url');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      print('⚠️ Invalid image URL (parse error): $url - $e');
+      return false;
+    }
   }
 }
