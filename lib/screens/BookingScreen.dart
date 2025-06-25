@@ -164,6 +164,36 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
+  bool _canBookSelectedSlot() {
+    if (selectedSlotIndex == null || selectedCourtIndex == null || sports.isEmpty) {
+      return false;
+    }
+    
+    // Check if the selected slot is available
+    if (selectedSlotIndex! < availableSlots.length) {
+      final slotData = availableSlots[selectedSlotIndex!];
+      final courts = slotData['courts'] as List;
+      if (selectedCourtIndex! < courts.length) {
+        final courtData = courts[selectedCourtIndex!];
+        return courtData['isAvailable'] ?? false;
+      }
+    }
+    
+    return false;
+  }
+
+  bool _hasAvailableSlots() {
+    for (final slotData in availableSlots) {
+      final courts = slotData['courts'] as List;
+      for (final courtData in courts) {
+        if (courtData['isAvailable'] ?? false) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   void _filterCourtsBySport() async {
     if (sports.isEmpty || selectedSport < 0 || selectedSport >= sports.length) {
       print('⚠️ No sports available yet or invalid selection');
@@ -323,22 +353,24 @@ class _BookingScreenState extends State<BookingScreen> {
           final slotId = slot['id'] as int;
           final isAvailable = availableSlotIds.contains(slotId);
           
+          // Always add the slot, but mark availability status
+          final timeKey = '${slot['startTime']} - ${slot['endTime']}';
+          if (!slotsByTime.containsKey(timeKey)) {
+            slotsByTime[timeKey] = [];
+          }
+          slotsByTime[timeKey]!.add({
+            'court': court,
+            'slot': slot,
+            'courtName': court['name'],
+            'courtId': court['id'],
+            'slotId': slot['id'],
+            'isAvailable': isAvailable,
+          });
+          
           if (isAvailable) {
-            final timeKey = '${slot['startTime']} - ${slot['endTime']}';
-            if (!slotsByTime.containsKey(timeKey)) {
-              slotsByTime[timeKey] = [];
-            }
-            slotsByTime[timeKey]!.add({
-              'court': court,
-              'slot': slot,
-              'courtName': court['name'],
-              'courtId': court['id'],
-              'slotId': slot['id'],
-              'isAvailable': true,
-            });
             print('   ✅ Added available slot: $timeKey');
           } else {
-            print('   🔒 Skipped booked slot: ${slot['startTime']}-${slot['endTime']}');
+            print('   🔒 Added booked slot: $timeKey');
           }
         } else {
           print('   ❌ Skipped slot: dayOfWeek mismatch or inactive');
@@ -627,7 +659,8 @@ class _BookingScreenState extends State<BookingScreen> {
                                     spacing: 8,
                                     children: List.generate(courts.length, (courtIdx) {
                                       final courtData = courts[courtIdx];
-                                      final isSelected = selectedSlotIndex == slotIdx && selectedCourtIndex == courtIdx;
+                                      final isAvailable = courtData['isAvailable'] ?? false;
+                                      final isSelected = selectedSlotIndex == slotIdx && selectedCourtIndex == courtIdx && isAvailable;
                                       
                                       // Get price for this specific court/slot
                                       final slot = courtData['slot'];
@@ -638,12 +671,12 @@ class _BookingScreenState extends State<BookingScreen> {
                                           ? slotPrice 
                                           : (courtPrice ?? 300);
                                       
-                                                                            // Check if this court has displayOccupancy enabled
+                                      // Check if this court has displayOccupancy enabled
                                       final courtId = courtData['courtId'] as int;
                                       final courtOccupancy = occupancyData[courtId];
                                       final displayOccupancy = court['displayOccupancy'] == true;
                                       
-                                      String displayText = '₹${price}/hr';
+                                      String displayText = isAvailable ? '₹${price}/hr' : 'BOOKED';
                                       String? occupancyText;
                                       
                                       if (displayOccupancy && courtOccupancy != null) {
@@ -662,6 +695,28 @@ class _BookingScreenState extends State<BookingScreen> {
                                         }
                                       }
                                       
+                                      // Determine colors based on availability
+                                      Color chipColor;
+                                      Color textColor;
+                                      Color selectedColor;
+                                      
+                                      if (!isAvailable) {
+                                        // Booked slot - red colors
+                                        chipColor = Colors.red.shade100;
+                                        textColor = Colors.red.shade700;
+                                        selectedColor = Colors.red.shade300;
+                                      } else if (isSelected) {
+                                        // Selected available slot
+                                        chipColor = colorScheme.primary;
+                                        textColor = colorScheme.onPrimary;
+                                        selectedColor = colorScheme.primary;
+                                      } else {
+                                        // Available slot
+                                        chipColor = Colors.transparent;
+                                        textColor = colorScheme.primary;
+                                        selectedColor = colorScheme.primary;
+                                      }
+                                      
                                       return ChoiceChip(
                                         label: Column(
                                           mainAxisSize: MainAxisSize.min,
@@ -669,7 +724,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                             Text(
                                               courtData['courtName'],
                                               style: GoogleFonts.poppins(
-                                                color: isSelected ? colorScheme.onPrimary : colorScheme.primary,
+                                                color: textColor,
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -678,9 +733,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                               Text(
                                                 occupancyText!,
                                                 style: GoogleFonts.poppins(
-                                                  color: isSelected 
-                                                      ? colorScheme.onPrimary.withOpacity(0.9) 
-                                                      : colorScheme.primary.withOpacity(0.8),
+                                                  color: textColor.withOpacity(0.9),
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w600,
                                                 ),
@@ -688,9 +741,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                               Text(
                                                 displayText,
                                                 style: GoogleFonts.poppins(
-                                                  color: isSelected 
-                                                      ? colorScheme.onPrimary.withOpacity(0.7) 
-                                                      : colorScheme.primary.withOpacity(0.6),
+                                                  color: textColor.withOpacity(0.7),
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.w400,
                                                 ),
@@ -699,9 +750,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                               Text(
                                                 displayText,
                                                 style: GoogleFonts.poppins(
-                                                  color: isSelected 
-                                                      ? colorScheme.onPrimary.withOpacity(0.8) 
-                                                      : colorScheme.primary.withOpacity(0.7),
+                                                  color: textColor.withOpacity(0.8),
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.w400,
                                                 ),
@@ -709,13 +758,15 @@ class _BookingScreenState extends State<BookingScreen> {
                                           ],
                                         ),
                                         selected: isSelected,
-                                        onSelected: (_) {
+                                        onSelected: isAvailable ? (_) {
                                           setState(() {
                                             selectedSlotIndex = slotIdx;
                                             selectedCourtIndex = courtIdx;
                                           });
-                                        },
-                                        selectedColor: colorScheme.primary,
+                                        } : null,
+                                        selectedColor: selectedColor,
+                                        backgroundColor: chipColor,
+                                        disabledColor: Colors.red.shade100,
                                         labelPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       );
                                     }),
@@ -728,57 +779,58 @@ class _BookingScreenState extends State<BookingScreen> {
                       ),
                     ),
             ),
-            // Fixed BOOK NOW button at the bottom
-            if (!isLoading && availableSlots.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: SafeArea(
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: (selectedSlotIndex != null && selectedCourtIndex != null && sports.isNotEmpty)
-                          ? () {
-                              // Always show sport rules as confirmation before proceeding
-                              final sportName = _formatSportName(selectedSportName);
-                              _showSportRules(context, sportName);
-                            }
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey[400],
-                        disabledForegroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 2,
+          ],
+        ),
+      ),
+      // Fixed BOOK NOW button at the bottom  
+      bottomNavigationBar: (!isLoading && availableSlots.isNotEmpty && _hasAvailableSlots())
+          ? Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _canBookSelectedSlot()
+                        ? () {
+                            // Always show sport rules as confirmation before proceeding
+                            final sportName = _formatSportName(selectedSportName);
+                            _showSportRules(context, sportName);
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey[400],
+                      disabledForegroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        'BOOK NOW',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18, 
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                      elevation: 2,
+                    ),
+                    child: Text(
+                      'BOOK NOW',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18, 
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 ),
               ),
-          ],
-        ),
-      ),
+            )
+          : null,
     );
   }
 

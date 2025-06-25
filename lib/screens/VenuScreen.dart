@@ -109,61 +109,67 @@ class _VenueScreenState extends State<VenueScreen> {
             ],
           ),
         ),
-        child: Stack(
-          children: [
-            CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _buildImageCarousel(images, colors)),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _buildImageCarousel(images, colors)),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 16,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _buildVenueTitle(venue, colors),
+                  const SizedBox(height: 24),
+                  _buildDescriptionSection(venue),
+                  const SizedBox(height: 32),
+                  _buildLocationSection(venue, colors),
+                  const SizedBox(height: 32),
+                  _buildContactSection(venue, colors),
+                  const SizedBox(height: 32),
+                  // _buildCategorySection('Venue Type', venue['venueType'], Icons.category, colors),
+                  // const SizedBox(height: 32),
+                  _buildChipsSection(
+                    'Available Sports',
+                    venue['availableSports'],
+                    Icons.sports_soccer,
+                    colors,
                   ),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _buildVenueTitle(venue, colors),
-                      const SizedBox(height: 24),
-                      _buildDescriptionSection(venue),
-                      const SizedBox(height: 32),
-                      _buildLocationSection(venue, colors),
-                      const SizedBox(height: 32),
-                      _buildContactSection(venue, colors),
-                      const SizedBox(height: 32),
-                      // _buildCategorySection('Venue Type', venue['venueType'], Icons.category, colors),
-                      // const SizedBox(height: 32),
-                      _buildChipsSection(
-                        'Available Sports',
-                        venue['availableSports'],
-                        Icons.sports_soccer,
-                        colors,
-                      ),
-                      const SizedBox(height: 32),
-                      _buildChipsSection(
-                        'Services',
-                        venue['services'],
-                        Icons.room_service,
-                        colors,
-                      ),
-                      const SizedBox(height: 32),
-                      _buildChipsSection(
-                        'Amenities',
-                        venue['amenities'],
-                        Icons.spa,
-                        colors,
-                      ),
-                      const SizedBox(height: 160), // Extra space for bottom nav + button
-                    ]),
+                  const SizedBox(height: 32),
+                  _buildChipsSection(
+                    'Services',
+                    venue['services'],
+                    Icons.room_service,
+                    colors,
                   ),
-                ),
-              ],
-            ),
-            Positioned(
-              bottom: 100, // Fixed position above bottom nav bar
-              left: 24,
-              right: 24,
-              child: _buildBookButton(colors, venueId),
+                  const SizedBox(height: 32),
+                  _buildChipsSection(
+                    'Amenities',
+                    venue['amenities'],
+                    Icons.spa,
+                    colors,
+                  ),
+                  const SizedBox(height: 20), // Reduced space
+                ]),
+              ),
             ),
           ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(12.0), // Reduced padding
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              colors.primary.withOpacity(0.03),
+              colors.primary.withOpacity(0.08),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: _buildBookButton(colors, venueId),
         ),
       ),
     );
@@ -534,10 +540,10 @@ class _VenueScreenState extends State<VenueScreen> {
         );
       },
       style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        padding: const EdgeInsets.symmetric(vertical: 14), // Reduced padding
         backgroundColor: colors.primary,
         foregroundColor: colors.onPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), // Slightly smaller border radius
         elevation: 4,
         shadowColor: colors.primary.withOpacity(0.3),
       ),
