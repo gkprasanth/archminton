@@ -24,6 +24,7 @@ class _BookingScreenState extends State<BookingScreen> {
   List<Map<String, dynamic>> courts = [];
   List<Map<String, dynamic>> availableSlots = [];
   bool isLoading = true;
+  Map<int, Map<String, dynamic>> occupancyData = {};
 
   @override
   void initState() {
@@ -232,6 +233,28 @@ class _BookingScreenState extends State<BookingScreen> {
     
     // Format date for API call (YYYY-MM-DD)
     final dateString = '${selectedDate.year.toString().padLeft(4, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+    
+    // Fetch occupancy data for courts with displayOccupancy enabled
+    try {
+      final occupancyList = await ApiService.getCourtOccupancy(
+        venueId: int.tryParse(widget.venueId.toString()),
+        date: dateString,
+      );
+      
+      final Map<int, Map<String, dynamic>> newOccupancyData = {};
+      for (final courtOccupancy in occupancyList) {
+        final courtId = courtOccupancy['courtId'] as int;
+        newOccupancyData[courtId] = courtOccupancy;
+      }
+      
+      setState(() {
+        occupancyData = newOccupancyData;
+      });
+      
+      print('📊 Loaded occupancy data for ${newOccupancyData.length} courts');
+    } catch (e) {
+      print('❌ Error fetching occupancy data: $e');
+    }
     
     for (final court in filteredCourts) {
       final timeSlots = court['timeSlots'] as List;
@@ -615,7 +638,31 @@ class _BookingScreenState extends State<BookingScreen> {
                                           ? slotPrice 
                                           : (courtPrice ?? 300);
                                       
-                                                                            return ChoiceChip(
+                                                                            // Check if this court has displayOccupancy enabled
+                                      final courtId = courtData['courtId'] as int;
+                                      final courtOccupancy = occupancyData[courtId];
+                                      final displayOccupancy = court['displayOccupancy'] == true;
+                                      
+                                      String displayText = '₹${price}/hr';
+                                      String? occupancyText;
+                                      
+                                      if (displayOccupancy && courtOccupancy != null) {
+                                        // Find occupancy for this specific time slot
+                                        final timeSlots = courtOccupancy['timeSlots'] as List?;
+                                        if (timeSlots != null) {
+                                          final slotOccupancy = timeSlots.firstWhere(
+                                            (ts) => ts['timeSlotId'] == slot['id'],
+                                            orElse: () => null,
+                                          );
+                                          if (slotOccupancy != null) {
+                                            final current = slotOccupancy['currentOccupancy'] ?? 0;
+                                            final max = slotOccupancy['maxOccupancy'] ?? 0;
+                                            occupancyText = '$current/$max';
+                                          }
+                                        }
+                                      }
+                                      
+                                      return ChoiceChip(
                                         label: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
@@ -627,16 +674,38 @@ class _BookingScreenState extends State<BookingScreen> {
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
-                                            Text(
-                                              '₹${price}/hr',
-                                              style: GoogleFonts.poppins(
-                                                color: isSelected 
-                                                    ? colorScheme.onPrimary.withOpacity(0.8) 
-                                                    : colorScheme.primary.withOpacity(0.7),
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w400,
+                                            if (occupancyText != null) ...[
+                                              Text(
+                                                occupancyText!,
+                                                style: GoogleFonts.poppins(
+                                                  color: isSelected 
+                                                      ? colorScheme.onPrimary.withOpacity(0.9) 
+                                                      : colorScheme.primary.withOpacity(0.8),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
-                                            ),
+                                              Text(
+                                                displayText,
+                                                style: GoogleFonts.poppins(
+                                                  color: isSelected 
+                                                      ? colorScheme.onPrimary.withOpacity(0.7) 
+                                                      : colorScheme.primary.withOpacity(0.6),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w400,
+                                                ),
+                                              ),
+                                            ] else
+                                              Text(
+                                                displayText,
+                                                style: GoogleFonts.poppins(
+                                                  color: isSelected 
+                                                      ? colorScheme.onPrimary.withOpacity(0.8) 
+                                                      : colorScheme.primary.withOpacity(0.7),
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w400,
+                                                ),
+                                              ),
                                           ],
                                         ),
                                         selected: isSelected,

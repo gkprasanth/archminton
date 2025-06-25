@@ -475,6 +475,56 @@ class ApiService {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> getCourtOccupancy({
+    int? venueId,
+    required String date,
+  }) async {
+    try {
+      final requestHeaders = await headers;
+      final queryParams = <String, String>{
+        'date': date,
+      };
+      
+      if (venueId != null) {
+        queryParams['venueId'] = venueId.toString();
+      }
+      
+      final uri = Uri.parse('$baseUrl/bookings/occupancy').replace(queryParameters: queryParams);
+      print('🌐 API Call: GET $uri');
+      
+      final response = await http.get(
+        uri,
+        headers: requestHeaders,
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Court Occupancy Response Status: ${response.statusCode}');
+      print('📄 Court Occupancy Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        
+        // Handle different response formats
+        List<dynamic> occupancyList = [];
+        if (responseData['data'] != null && responseData['data'] is List) {
+          occupancyList = responseData['data'];
+        } else if (responseData['success'] == true && responseData['data'] is List) {
+          occupancyList = responseData['data'];
+        } else if (responseData is List) {
+          occupancyList = responseData;
+        }
+        
+        return occupancyList.map((item) => item as Map<String, dynamic>).toList();
+      } else {
+        final errorData = json.decode(response.body);
+        print('❌ Error fetching court occupancy: ${errorData['message'] ?? 'Unknown error'}');
+        return [];
+      }
+    } catch (e) {
+      print('❌ Error fetching court occupancy: $e');
+      return [];
+    }
+  }
+
   static Future<Map<String, dynamic>> createBooking({
     required int courtId,
     required int timeSlotId,
