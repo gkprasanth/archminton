@@ -1,4 +1,4 @@
-package com.example.archminton
+package com.archminton.app
 
 import io.flutter.embedding.android.FlutterActivity
 

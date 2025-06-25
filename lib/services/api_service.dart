@@ -6,6 +6,101 @@ import '../constants/constants.dart';
 class ApiService {
   static final String baseUrl = AppConstants.baseUrl;
 
+  // Forgot password
+  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/forgot-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      ).timeout(const Duration(seconds: 30));
+
+      return {
+        'success': response.statusCode == 200,
+        'data': jsonDecode(response.body),
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
+
+  // Reset password
+  static Future<Map<String, dynamic>> resetPassword(String token, String newPassword) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/reset-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'token': token,
+          'newPassword': newPassword,
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      return {
+        'success': response.statusCode == 200,
+        'data': jsonDecode(response.body),
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
+
+  // Test connectivity to the API endpoint
+  static Future<String?> testConnectivity() async {
+    print('🔍 Testing API connectivity...');
+    
+    // List of endpoints to test (primary + alternatives)
+    final endpointsToTest = [baseUrl, ...AppConstants.alternativeEndpoints];
+    
+    for (String endpoint in endpointsToTest) {
+      try {
+        print('   - Testing endpoint: $endpoint');
+        
+        // Try a simple GET request to the base API path
+        final response = await http.get(
+          Uri.parse(endpoint),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 10));
+        
+        // Accept any response that indicates the server is reachable
+        // (200, 404, 401, etc. - anything except network errors)
+        if (response.statusCode >= 200 && response.statusCode < 500) {
+          print('   ✅ Endpoint is reachable: $endpoint (Status: ${response.statusCode})');
+          return endpoint;
+        }
+      } catch (e) {
+        print('   ❌ Endpoint failed ($endpoint): $e');
+        
+        // If it's a client exception with "Failed host lookup", try next endpoint
+        if (e is http.ClientException && e.message.contains('Failed host lookup')) {
+          continue;
+        }
+        
+        // For other errors, the server might still be reachable
+        if (e.toString().contains('XMLHttpRequest') || 
+            e.toString().contains('CORS') ||
+            e.toString().contains('404') ||
+            e.toString().contains('401')) {
+          print('   ✅ Endpoint seems reachable despite error: $endpoint');
+          return endpoint;
+        }
+      }
+    }
+    
+    print('   ❌ All endpoints failed');
+    return null;
+  }
+
   static Future<Map<String, String>> get headers async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('accessToken') ?? '';
@@ -19,7 +114,7 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getCourts(String venueId) async {
     try {
       final requestHeaders = await headers;
-      final url = '$baseUrl/admin/courts?venueId=$venueId';
+      final url = '$baseUrl/courts?venueId=$venueId';
       print('🌐 API Call: GET $url');
       print('🔑 Headers: $requestHeaders');
       
@@ -47,6 +142,28 @@ class ApiService {
         print('🏟️ Parsed ${courts.length} courts');
         return courts;
       } else {
+        // If regular endpoint fails, try admin endpoint as fallback (for admin users)
+        print('🔄 Regular endpoint failed, trying admin endpoint as fallback...');
+        final adminUrl = '$baseUrl/admin/courts?venueId=$venueId';
+        final adminResponse = await http.get(
+          Uri.parse(adminUrl),
+          headers: requestHeaders,
+        );
+        
+        if (adminResponse.statusCode == 200) {
+          final adminData = json.decode(adminResponse.body);
+          List<Map<String, dynamic>> adminCourts = [];
+          if (adminData is List) {
+            adminCourts = List<Map<String, dynamic>>.from(adminData);
+          } else if (adminData is Map && adminData['data'] is List) {
+            adminCourts = List<Map<String, dynamic>>.from(adminData['data']);
+          } else if (adminData is Map && adminData['courts'] is List) {
+            adminCourts = List<Map<String, dynamic>>.from(adminData['courts']);
+          }
+          print('🏟️ Parsed ${adminCourts.length} courts from admin endpoint');
+          return adminCourts;
+        }
+        
         throw Exception('Failed to load courts: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
@@ -475,6 +592,251 @@ class ApiService {
     } catch (e) {
       print('💥 Delete Membership Request Exception: $e');
       throw Exception('Error deleting membership request: $e');
+    }
+  }
+
+  // Course API methods
+  static Future<List<Map<String, dynamic>>> getCourses({
+    String? sportType,
+    int? venueId,
+    bool? isActive,
+    String? search,
+  }) async {
+    try {
+      final requestHeaders = await headers;
+      
+      // Build query parameters
+      final queryParams = <String, String>{};
+      if (sportType != null) queryParams['sportType'] = sportType;
+      if (venueId != null) queryParams['venueId'] = venueId.toString();
+      if (isActive != null) queryParams['isActive'] = isActive.toString();
+      if (search != null) queryParams['search'] = search;
+      
+      final uri = Uri.parse('$baseUrl/courses').replace(queryParameters: queryParams);
+      print('🌐 API Call: GET $uri');
+      
+      final response = await http.get(uri, headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Courses Response Status: ${response.statusCode}');
+      print('📄 Courses Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Handle different response formats
+        List<Map<String, dynamic>> courses = [];
+        if (data is List) {
+          courses = List<Map<String, dynamic>>.from(data);
+        } else if (data is Map && data['data'] is List) {
+          courses = List<Map<String, dynamic>>.from(data['data']);
+        } else if (data is Map && data['courses'] is List) {
+          courses = List<Map<String, dynamic>>.from(data['courses']);
+        }
+        
+        print('📚 Parsed ${courses.length} courses');
+        return courses;
+      } else {
+        print('❌ Courses API failed with status ${response.statusCode}');
+        // Return empty list instead of throwing exception to prevent loading hang
+        return [];
+      }
+    } catch (e) {
+      print('💥 Courses API Error: $e');
+      // Return empty list instead of throwing exception to prevent loading hang
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getUpcomingCourses() async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/courses/upcoming';
+      print('🌐 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Upcoming Courses Response Status: ${response.statusCode}');
+      print('📄 Upcoming Courses Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Handle different response formats
+        List<Map<String, dynamic>> courses = [];
+        if (data is List) {
+          courses = List<Map<String, dynamic>>.from(data);
+        } else if (data is Map && data['data'] is List) {
+          courses = List<Map<String, dynamic>>.from(data['data']);
+        } else if (data is Map && data['courses'] is List) {
+          courses = List<Map<String, dynamic>>.from(data['courses']);
+        }
+        
+        print('📅 Parsed ${courses.length} upcoming courses');
+        return courses;
+      } else {
+        print('❌ Upcoming Courses API failed with status ${response.statusCode}');
+        // Return empty list instead of throwing exception to prevent loading hang
+        return [];
+      }
+    } catch (e) {
+      print('💥 Upcoming Courses API Error: $e');
+      // Return empty list instead of throwing exception to prevent loading hang
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getUserCourseEnrollments() async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/users/courses';
+      print('🌐 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 User Course Enrollments Response Status: ${response.statusCode}');
+      print('📄 User Course Enrollments Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Handle different response formats
+        List<Map<String, dynamic>> enrollments = [];
+        if (data is List) {
+          enrollments = List<Map<String, dynamic>>.from(data);
+        } else if (data is Map && data['data'] is List) {
+          enrollments = List<Map<String, dynamic>>.from(data['data']);
+        } else if (data is Map && data['enrollments'] is List) {
+          enrollments = List<Map<String, dynamic>>.from(data['enrollments']);
+        }
+        
+        print('🎓 Parsed ${enrollments.length} course enrollments');
+        return enrollments;
+      } else {
+        print('❌ User Course Enrollments API failed with status ${response.statusCode}');
+        // Return empty list instead of throwing exception to prevent loading hang
+        return [];
+      }
+    } catch (e) {
+      print('💥 User Course Enrollments API Error: $e');
+      // Return empty list instead of throwing exception to prevent loading hang
+      return [];
+    }
+  }
+
+  // User Membership API methods
+  static Future<List<Map<String, dynamic>>> getUserMemberships({bool includeExpired = false}) async {
+    try {
+      final requestHeaders = await headers;
+      final queryParams = includeExpired ? '?includeExpired=true' : '';
+      final url = '$baseUrl/membership/my-memberships$queryParams';
+      print('🌐 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 User Memberships Response Status: ${response.statusCode}');
+      print('📄 User Memberships Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Handle different response formats
+        List<Map<String, dynamic>> memberships = [];
+        if (data is List) {
+          memberships = List<Map<String, dynamic>>.from(data);
+        } else if (data is Map && data['data'] is List) {
+          memberships = List<Map<String, dynamic>>.from(data['data']);
+        } else if (data is Map && data['memberships'] is List) {
+          memberships = List<Map<String, dynamic>>.from(data['memberships']);
+        }
+        
+        print('💳 Parsed ${memberships.length} user memberships');
+        return memberships;
+      } else {
+        print('❌ User Memberships API failed with status ${response.statusCode}');
+        // Return empty list instead of throwing exception to prevent loading hang
+        return [];
+      }
+    } catch (e) {
+      print('💥 User Memberships API Error: $e');
+      // Return empty list instead of throwing exception to prevent loading hang
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getMembershipPackages({int? venueId}) async {
+    try {
+      final requestHeaders = await headers;
+      final queryParams = venueId != null ? '?venueId=$venueId' : '';
+      final url = '$baseUrl/membership/packages$queryParams';
+      print('🌐 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Membership Packages Response Status: ${response.statusCode}');
+      print('📄 Membership Packages Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Handle different response formats
+        List<Map<String, dynamic>> packages = [];
+        if (data is List) {
+          packages = List<Map<String, dynamic>>.from(data);
+        } else if (data is Map && data['data'] is List) {
+          packages = List<Map<String, dynamic>>.from(data['data']);
+        } else if (data is Map && data['packages'] is List) {
+          packages = List<Map<String, dynamic>>.from(data['packages']);
+        }
+        
+        print('📦 Parsed ${packages.length} membership packages');
+        return packages;
+      } else {
+        print('❌ Membership Packages API failed with status ${response.statusCode}');
+        // Return empty list instead of throwing exception to prevent loading hang
+        return [];
+      }
+    } catch (e) {
+      print('💥 Membership Packages API Error: $e');
+      // Return empty list instead of throwing exception to prevent loading hang
+      return [];
+    }
+  }
+
+  // Check court availability for a specific date
+  static Future<Map<String, dynamic>?> getCourtAvailability(int courtId, String date) async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/bookings/availability?courtId=$courtId&date=$date';
+      print('🔍 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Court Availability Response Status: ${response.statusCode}');
+      print('📄 Court Availability Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data is Map && data['success'] == true && data['data'] != null) {
+          print('✅ Successfully got availability data for court $courtId');
+          return data['data'];
+        } else {
+          print('❌ Invalid availability response format');
+          return null;
+        }
+      } else {
+        print('❌ Court Availability API failed with status ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('💥 Court Availability API Error: $e');
+      return null;
     }
   }
 } 

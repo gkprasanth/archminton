@@ -1,11 +1,18 @@
-import 'package:archminton/main.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Placeholder for BottomNavBar widget (replace with your actual implementation)
 
-class LearnScreen extends StatelessWidget {
+class LearnScreen extends StatefulWidget {
+  const LearnScreen({super.key});
+
+  @override
+  State<LearnScreen> createState() => _LearnScreenState();
+}
+
+class _LearnScreenState extends State<LearnScreen> {
   final List<Map<String, String>> sports = [
     {
       'name': 'Badminton',
@@ -30,7 +37,26 @@ class LearnScreen extends StatelessWidget {
     },
   ];
 
-  LearnScreen({super.key});
+  Set<String> interestedSports = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInterestedSports();
+  }
+
+  Future<void> _loadInterestedSports() async {
+    final prefs = await SharedPreferences.getInstance();
+    final interested = prefs.getStringList('interested_sports') ?? [];
+    setState(() {
+      interestedSports = interested.toSet();
+    });
+  }
+
+  Future<void> _saveInterestedSports() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('interested_sports', interestedSports.toList());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +101,7 @@ class LearnScreen extends StatelessWidget {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withOpacity(0.3),
+                            Colors.black.withValues(alpha: 0.3),
                             Colors.transparent,
                           ],
                         ),
@@ -133,8 +159,7 @@ class LearnScreen extends StatelessWidget {
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
-        onTap:
-            () => _showSelectionSnackbar(context, sport['name']!, primaryColor),
+        onTap: () => _handleJoinTraining(context, sport['name']!, primaryColor),
         borderRadius: BorderRadius.circular(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,12 +255,7 @@ class LearnScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed:
-                          () => _showSelectionSnackbar(
-                            context,
-                            sport['name']!,
-                            primaryColor,
-                          ),
+                      onPressed: () => _handleJoinTraining(context, sport['name']!, primaryColor),
                       icon: const Icon(Icons.sports, size: 20),
                       label: const Text(
                         'Join Training Program',
@@ -260,6 +280,101 @@ class LearnScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _handleJoinTraining(BuildContext context, String sport, Color color) async {
+    if (interestedSports.contains(sport)) {
+      // User has already shown interest, show regular snackbar
+      _showSelectionSnackbar(context, sport, color);
+    } else {
+      // First time showing interest, show popup dialog
+      await _showInterestDialog(context, sport, color);
+    }
+  }
+
+  Future<void> _showInterestDialog(BuildContext context, String sport, Color color) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap button to dismiss
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.sports,
+                color: Colors.green[700],
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Interest Recorded!',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green[800],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Thank you for your interest in our $sport training program!',
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'We have recorded your interest and our team will contact you soon with more details about upcoming sessions.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.green[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Got it!',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              onPressed: () async {
+                // Mark this sport as interested
+                setState(() {
+                  interestedSports.add(sport);
+                });
+                await _saveInterestedSports();
+                
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 

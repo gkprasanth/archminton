@@ -32,6 +32,17 @@ class _BookingScreenState extends State<BookingScreen> {
     _loadCourts();
   }
 
+  // Method to refresh courts and slots after a booking
+  void refreshAfterBooking() {
+    print('🔄 Refreshing courts and slots after booking...');
+    setState(() {
+      selectedSlotIndex = null;
+      selectedCourtIndex = null;
+      isLoading = true;
+    });
+    _loadCourts();
+  }
+
   IconData _getSportIcon(String sportType) {
     final sport = sportType.toUpperCase();
     if (sport.contains('TENNIS') || sport.contains('BADMINTON')) {
@@ -152,7 +163,7 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  void _filterCourtsBySport() {
+  void _filterCourtsBySport() async {
     if (sports.isEmpty || selectedSport < 0 || selectedSport >= sports.length) {
       print('⚠️ No sports available yet or invalid selection');
       setState(() {
@@ -165,17 +176,62 @@ class _BookingScreenState extends State<BookingScreen> {
     print('🎯 Filtering for sport: $selectedSportName');
     print('📅 Selected date: $selectedDate (weekday: ${selectedDate.weekday})');
     
+    // Check if selected date is valid based on venue type
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selectedDateOnly = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    
+    if (selectedDateOnly.isBefore(today)) {
+      print('⚠️ Cannot book for past dates.');
+      setState(() {
+        availableSlots = [];
+      });
+      return;
+    }
+    
     final filteredCourts = courts.where((court) => 
       court['sportType'].toString().toUpperCase().contains(selectedSportName)
     ).toList();
+    
+    // Check if this is a private venue (check any court's venue type)
+    bool isPrivateVenue = false;
+    if (filteredCourts.isNotEmpty) {
+      final firstCourt = filteredCourts.first;
+      final venue = firstCourt['venue'];
+      if (venue != null) {
+        final venueType = venue['venueType']?.toString().toUpperCase();
+        final societyId = venue['societyId'];
+        // Private venue if venueType is PRIVATE or if it has a societyId
+        isPrivateVenue = venueType == 'PRIVATE' || societyId != null;
+      }
+    }
+    
+    // For private venues, restrict to today and tomorrow only
+    if (isPrivateVenue) {
+      final tomorrow = today.add(const Duration(days: 1));
+      if (selectedDateOnly.isAfter(tomorrow)) {
+        print('⚠️ Private venues can only be booked for today or tomorrow.');
+        setState(() {
+          availableSlots = [];
+        });
+        return;
+      }
+    }
     
     print('🏟️ Filtered courts: ${filteredCourts.length}');
     for (final court in filteredCourts) {
       print('  - ${court['name']} (${court['sportType']})');
     }
     
+    setState(() {
+      isLoading = true;
+    });
+    
     // Group time slots by time for display
     final Map<String, List<Map<String, dynamic>>> slotsByTime = {};
+    
+    // Format date for API call (YYYY-MM-DD)
+    final dateString = '${selectedDate.year.toString().padLeft(4, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
     
     for (final court in filteredCourts) {
       final timeSlots = court['timeSlots'] as List;
@@ -184,24 +240,83 @@ class _BookingScreenState extends State<BookingScreen> {
       final dayOfWeek = selectedDate.weekday == 7 ? 0 : selectedDate.weekday;
       
       print('🕐 Court ${court['name']} has ${timeSlots.length} time slots');
-             print('   Looking for dayOfWeek: $dayOfWeek (original weekday: ${selectedDate.weekday})');
+      print('   Looking for dayOfWeek: $dayOfWeek (original weekday: ${selectedDate.weekday})');
+      
+      // Get availability data for this court
+      final availabilityData = await ApiService.getCourtAvailability(court['id'], dateString);
+      final availableSlotIds = <int>{};
+      
+      if (availabilityData != null && availabilityData['availability'] is List) {
+        final availabilityList = availabilityData['availability'] as List;
+        for (final availSlot in availabilityList) {
+          if (availSlot['isAvailable'] == true) {
+            availableSlotIds.add(availSlot['id'] as int);
+          }
+        }
+        print('   📊 Available slot IDs: $availableSlotIds');
+      } else {
+        print('   ⚠️ No availability data received for court ${court['id']}');
+        // If we can't get availability data, assume all slots are available (fallback)
+        for (final slot in timeSlots) {
+          if (slot['dayOfWeek'] == dayOfWeek && slot['isActive']) {
+            availableSlotIds.add(slot['id'] as int);
+          }
+        }
+      }
       
       for (final slot in timeSlots) {
-        print('   Slot: dayOfWeek=${slot['dayOfWeek']}, isActive=${slot['isActive']}, time=${slot['startTime']}-${slot['endTime']}');
+        print('   Slot: dayOfWeek=${slot['dayOfWeek']}, isActive=${slot['isActive']}, time=${slot['startTime']}-${slot['endTime']}, id=${slot['id']}');
         
         if (slot['dayOfWeek'] == dayOfWeek && slot['isActive']) {
-          final timeKey = '${slot['startTime']} - ${slot['endTime']}';
-          if (!slotsByTime.containsKey(timeKey)) {
-            slotsByTime[timeKey] = [];
+          // Check if this is a past time slot for today (applies to all venue types)
+          final isToday = selectedDateOnly.isAtSameMomentAs(today);
+          if (isToday) {
+            // Parse slot start time and compare with current time
+            try {
+              final slotStartTime = slot['startTime'] as String;
+              final slotTimeParts = slotStartTime.split(':');
+              final slotHour = int.parse(slotTimeParts[0]);
+              final slotMinute = int.parse(slotTimeParts[1]);
+              
+              final slotDateTime = DateTime(
+                selectedDate.year,
+                selectedDate.month,
+                selectedDate.day,
+                slotHour,
+                slotMinute,
+              );
+              
+              // Skip past time slots for today (add 15 minute buffer for all venues)
+              if (slotDateTime.isBefore(now.add(const Duration(minutes: 15)))) {
+                print('   ⏰ Skipped past slot: ${slot['startTime']}-${slot['endTime']}');
+                continue;
+              }
+            } catch (e) {
+              print('   ⚠️ Error parsing slot time: $e');
+              continue;
+            }
           }
-          slotsByTime[timeKey]!.add({
-            'court': court,
-            'slot': slot,
-            'courtName': court['name'],
-            'courtId': court['id'],
-            'slotId': slot['id'],
-          });
-          print('   ✅ Added slot: $timeKey');
+          
+          final slotId = slot['id'] as int;
+          final isAvailable = availableSlotIds.contains(slotId);
+          
+          if (isAvailable) {
+            final timeKey = '${slot['startTime']} - ${slot['endTime']}';
+            if (!slotsByTime.containsKey(timeKey)) {
+              slotsByTime[timeKey] = [];
+            }
+            slotsByTime[timeKey]!.add({
+              'court': court,
+              'slot': slot,
+              'courtName': court['name'],
+              'courtId': court['id'],
+              'slotId': slot['id'],
+              'isAvailable': true,
+            });
+            print('   ✅ Added available slot: $timeKey');
+          } else {
+            print('   🔒 Skipped booked slot: ${slot['startTime']}-${slot['endTime']}');
+          }
         } else {
           print('   ❌ Skipped slot: dayOfWeek mismatch or inactive');
         }
@@ -220,6 +335,7 @@ class _BookingScreenState extends State<BookingScreen> {
       }).toList();
       selectedSlotIndex = null;
       selectedCourtIndex = null;
+      isLoading = false;
     });
   }
 
@@ -314,11 +430,44 @@ class _BookingScreenState extends State<BookingScreen> {
                     children: [
                       ElevatedButton.icon(
                         onPressed: () async {
+                          final now = DateTime.now();
+                          final today = DateTime(now.year, now.month, now.day);
+                          
+                          // Check if this is a private venue
+                          bool isPrivateVenue = false;
+                          if (courts.isNotEmpty) {
+                            final selectedSportName = sports.isNotEmpty && selectedSport < sports.length 
+                                ? sports[selectedSport] 
+                                : '';
+                            final filteredCourts = courts.where((court) => 
+                              court['sportType'].toString().toUpperCase().contains(selectedSportName)
+                            ).toList();
+                            
+                            if (filteredCourts.isNotEmpty) {
+                              final firstCourt = filteredCourts.first;
+                              final venue = firstCourt['venue'];
+                              if (venue != null) {
+                                final venueType = venue['venueType']?.toString().toUpperCase();
+                                final societyId = venue['societyId'];
+                                isPrivateVenue = venueType == 'PRIVATE' || societyId != null;
+                              }
+                            }
+                          }
+                          
+                          final lastDate = isPrivateVenue 
+                              ? today.add(const Duration(days: 1)) // Tomorrow for private venues
+                              : today.add(const Duration(days: 30)); // 30 days for public venues
+                          
+                          final helpText = isPrivateVenue 
+                              ? 'Select booking date (Today or Tomorrow only)'
+                              : 'Select booking date';
+                          
                           final picked = await showDatePicker(
                             context: context,
                             initialDate: selectedDate,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 30)),
+                            firstDate: today,
+                            lastDate: lastDate,
+                            helpText: helpText,
                           );
                           if (picked != null) {
                             setState(() {
@@ -336,25 +485,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           foregroundColor: colorScheme.onPrimary,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 16,
-                              height: 16,
-                              color: colorScheme.primary.withOpacity(0.3),
-                            ),
-                            const SizedBox(width: 6),
-                            Text('₹300/hr'), // Default price, will be updated with real data
-                          ],
-                        ),
-                      ),
+
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -415,8 +546,40 @@ class _BookingScreenState extends State<BookingScreen> {
                                     children: List.generate(courts.length, (courtIdx) {
                                       final courtData = courts[courtIdx];
                                       final isSelected = selectedSlotIndex == slotIdx && selectedCourtIndex == courtIdx;
-                                      return ChoiceChip(
-                                        label: Text(courtData['courtName']),
+                                      
+                                      // Get price for this specific court/slot
+                                      final slot = courtData['slot'];
+                                      final court = courtData['court'];
+                                      final slotPrice = slot['pricePerHour'];
+                                      final courtPrice = court['pricePerHour'];
+                                      final price = (slotPrice != null && slotPrice != 0) 
+                                          ? slotPrice 
+                                          : (courtPrice ?? 300);
+                                      
+                                                                            return ChoiceChip(
+                                        label: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              courtData['courtName'],
+                                              style: GoogleFonts.poppins(
+                                                color: isSelected ? colorScheme.onPrimary : colorScheme.primary,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            Text(
+                                              '₹${price}/hr',
+                                              style: GoogleFonts.poppins(
+                                                color: isSelected 
+                                                    ? colorScheme.onPrimary.withOpacity(0.8) 
+                                                    : colorScheme.primary.withOpacity(0.7),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w400,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                         selected: isSelected,
                                         onSelected: (_) {
                                           setState(() {
@@ -425,9 +588,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                           });
                                         },
                                         selectedColor: colorScheme.primary,
-                                        labelStyle: GoogleFonts.poppins(
-                                          color: isSelected ? colorScheme.onPrimary : colorScheme.primary,
-                                        ),
+                                        labelPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       );
                                     }),
                                   ),
@@ -650,6 +811,33 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+  // Method kept for potential future use, but currently not displayed in UI
+  String _getCurrentPrice() {
+    if (selectedSlotIndex != null && selectedCourtIndex != null && 
+        selectedSlotIndex! < availableSlots.length) {
+      final slotData = availableSlots[selectedSlotIndex!];
+      final courts = slotData['courts'] as List;
+      
+      if (selectedCourtIndex! < courts.length) {
+        final courtData = courts[selectedCourtIndex!];
+        final slot = courtData['slot'];
+        final court = courtData['court'];
+        
+        // Use slot-specific price first, then fallback to court price
+        final slotPrice = slot['pricePerHour'];
+        final courtPrice = court['pricePerHour'];
+        
+        if (slotPrice != null && slotPrice != 0) {
+          return '₹${slotPrice}/hr';
+        } else if (courtPrice != null && courtPrice != 0) {
+          return '₹${courtPrice}/hr';
+        }
+      }
+    }
+    
+    return '₹300/hr'; // Default fallback
+  }
+
   List<String> _getSportRules(String sportName) {
     final sport = sportName.toLowerCase().replaceAll('\n', ' ');
     
@@ -657,57 +845,94 @@ class _BookingScreenState extends State<BookingScreen> {
       return [
         'Maximum of 14 players is permitted.',
         'Barefoot not allowed.',
-        'All guidelines of Gamepoint need to be followed.',
+        'All guidelines of Archminton need to be followed.',
         'Equipments are provided.',
         'Sportswear like track pants / shorts with a t-shirt is mandatory.',
       ];
     } else if (sport.contains('badminton')) {
       return [
-        'Maximum of 4 players per court (doubles).',
-        'Non-marking shoes are mandatory.',
-        'Rackets and shuttlecocks are provided.',
-        'Court time is strictly monitored.',
-        'Appropriate sportswear required.',
+        'Barefoot not allowed. Sportswear like track pants / shorts / skirts with a t-shirt is mandatory.',
+        'Maximum of 6 players per court is permitted.',
+        'Clean NON-MARKING GUMSOLE BADMINTON SHOES are mandatory.',
+        'All guidelines of Archminton need to be followed.',
+        'Players need to bring their own equipment – shoes and rackets.',
+        'Equipment is available for lease / sale at the sports shop.',
+        'Any damage to the equipment will be charged.',
+        'Tournament conduction is not allowed through app booking.',
       ];
     } else if (sport.contains('tennis')) {
       return [
-        'Proper tennis shoes required.',
-        'Maximum 4 players per court.',
-        'Equipment can be rented if needed.',
-        'Court time is strictly monitored.',
-        'Appropriate sportswear required.',
+        'A maximum of 4 players per court is permitted. NON-MARKING TENNIS SHOES are mandatory. Sports Attire is mandatory. Players need to bring their own equipment. Equipment is available for lease/sale at the sports shop. The customer is responsible for any damage or loss incurred to the leased items. Any damage to the equipment will be charged. All safety guidelines of Archminton need to be followed.',
       ];
     } else if (sport.contains('table tennis') || sport.contains('ping pong')) {
       return [
-        'Maximum of 4 players per table.',
-        'Paddles and balls are provided.',
-        'Non-marking shoes recommended.',
-        'Keep the playing area clean.',
-        'Respect other players and wait your turn.',
+        'Maximum of 4 players per court is permitted.',
+        'Sportswear like track pants / shorts / skirts with a t-shirt is mandatory.',
+        'Any damage to the equipment will be charged.',
+        'All guidelines of Archminton need to be followed.',
+        'Tournament conduction is not allowed through app booking.',
+        'Please email us at events@nplay.in for bulk/ tournament booking.',
       ];
-    } else if (sport.contains('cricket')) {
+    } else if (sport.contains('cricket nets') || sport.contains('cricket')) {
       return [
-        'Maximum team size as per format.',
-        'Proper cricket attire required.',
-        'Equipment may be provided or bring your own.',
-        'Follow all safety guidelines.',
-        'Respect the pitch and facilities.',
+        'Balls are provided by Archminton only for the Net with bowling machine.',
+        'Customers are responsible for their safety. All customers requested to get their own protective cricket gear while playing in nets.',
+        'A maximum of 3 players will be allowed to play in each slot.',
+        'All children below the age of 18 years need to be accompanied by an adult while using the net facility and must use the helmet and protective gear.',
+        'All players should wear suitable sportswear including footwear without spikes or any sole that damage the turf. No item including kit bags should be placed in the cricket net to avoid damage and injuries to the players.',
       ];
     } else if (sport.contains('basketball')) {
       return [
-        'Maximum of 10 players per court.',
-        'Non-marking basketball shoes required.',
-        'Ball is provided.',
-        'No hanging on the rim.',
-        'Appropriate sportswear required.',
+        'Maximum of 8 players per half court is permitted.',
+        'Basketball shoes are mandatory.',
+        'Spike shoes not allowed.',
+        'Ball will be provided.',
+        'Sportswear like track pants / shorts / skirts with a t-shirt is mandatory.',
+        'All guidelines of Archminton need to be followed.',
+        'Tournament conduction is not allowed through app booking.',
+        'Please email us at events@nplay.in for bulk/ tournament booking.',
       ];
     } else if (sport.contains('swimming')) {
       return [
-        'Swimming attire is mandatory.',
-        'No diving in shallow areas.',
-        'Children must be supervised by adults.',
-        'Follow pool timings strictly.',
-        'No food or drinks near the pool area.',
+        'A swimming costume including a cap is mandatory.',
+        'One person per one booking only.',
+        'Shower before dipping into the pool.',
+        'All safety guidelines of Archminton need to be followed.',
+      ];
+    } else if (sport.contains('squash')) {
+      return [
+        'A Maximum of 4 players per court is permitted.',
+        'Sportswear like track pants / shorts / skirts with a t-shirt is mandatory.',
+        'Clean NON-MARKING GUMSOLE SHOES are mandatory.',
+        'Players need to bring their own equipment – shoes and rackets.',
+        'Equipment is available for lease/sale at the sports shop.',
+        'Any damage to the equipment will be charged.',
+        'All guidelines of Archminton need to be followed.',
+        'Tournament conduction is not allowed through app booking.',
+        'Please email us at events@nplay.in for bulk/ tournament booking.',
+      ];
+    } else if (sport.contains('pickleball')) {
+      return [
+        'Barefoot not allowed. Sportswear like track pants / shorts / skirts with a t-shirt is mandatory.',
+        'Maximum of 6 players per court is permitted.',
+        'All guidelines of Archminton need to be followed.',
+        'Players need to bring their own equipment – shoes and rackets.',
+        'Equipment is available for lease / sale at the sports shop.',
+        'Any damage to the equipment will be charged.',
+        'Tournament conduction is not allowed through app booking.',
+        'Please email us at events@nplay.in for bulk/ tournament booking.',
+      ];
+    } else if (sport.contains('box cricket')) {
+      return [
+        'Maximum of 14 players is permitted.',
+        'Barefoot not allowed.',
+        'All guidelines of Archminton need to be followed.',
+        'Equipments are provided.',
+        'Sportswear like track pants / shorts with a t-shirt is mandatory.',
+      ];
+    } else if (sport.contains('cue sport') || sport.contains('pool') || sport.contains('billiards')) {
+      return [
+        'A maximum of 6 players are allowed.',
       ];
     } else {
       return [
@@ -716,6 +941,7 @@ class _BookingScreenState extends State<BookingScreen> {
         'Equipment may be provided or rented.',
         'Respect other players and facilities.',
         'Arrive on time for your booking.',
+        'All guidelines of Archminton need to be followed.',
       ];
     }
   }
@@ -742,6 +968,28 @@ class _BookingScreenState extends State<BookingScreen> {
     final courtData = courts[selectedCourtIndex!];
     final court = courtData['court'];
     
+    final slot = courtData['slot'];
+    
+    // Check if the slot is already booked
+    final isBooked = slot['status']?.toString().toLowerCase() == 'booked' ||
+                     slot['isBooked'] == true ||
+                     slot['available'] == false;
+    
+    if (isBooked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This slot has already been booked. Please select another slot.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      // Refresh the slots to get updated availability
+      refreshAfterBooking();
+      return;
+    }
+    
+    final slotPrice = slot['pricePerHour'];
+    final courtPrice = court['pricePerHour'];
+    
     final bookingData = {
       'courtId': courtData['courtId'],
       'slotId': courtData['slotId'],
@@ -751,7 +999,7 @@ class _BookingScreenState extends State<BookingScreen> {
       'venueLocation': court['venue']?['location'] ?? 'Unknown Location',
       'date': selectedDate,
       'timeSlot': slotData['time'],
-      'price': int.tryParse(court['pricePerHour']?.toString() ?? '0') ?? 300,
+      'price': int.tryParse(slotPrice?.toString() ?? courtPrice?.toString() ?? '0') ?? 300,
     };
     
     print('🎯 Navigating to summary with data: $bookingData');
@@ -759,7 +1007,10 @@ class _BookingScreenState extends State<BookingScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BookingSummaryScreen(bookingData: bookingData),
+        builder: (context) => BookingSummaryScreen(
+          bookingData: bookingData,
+          onBookingSuccess: refreshAfterBooking,
+        ),
       ),
     );
   }

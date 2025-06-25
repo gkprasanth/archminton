@@ -6,8 +6,13 @@ import 'RazorpayPaymentScreen.dart';
 
 class BookingSummaryScreen extends StatefulWidget {
   final Map<String, dynamic> bookingData;
+  final VoidCallback? onBookingSuccess;
 
-  const BookingSummaryScreen({super.key, required this.bookingData});
+  const BookingSummaryScreen({
+    super.key, 
+    required this.bookingData,
+    this.onBookingSuccess,
+  });
 
   @override
   State<BookingSummaryScreen> createState() => _BookingSummaryScreenState();
@@ -387,6 +392,7 @@ class _BookingSummaryScreenState extends State<BookingSummaryScreen> {
       MaterialPageRoute(
         builder: (context) => RazorpayPaymentScreen(
           bookingData: widget.bookingData,
+          onBookingSuccess: widget.onBookingSuccess,
         ),
       ),
     );

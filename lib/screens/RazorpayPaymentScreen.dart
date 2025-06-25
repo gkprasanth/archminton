@@ -7,8 +7,13 @@ import 'profileoptions/MyBookings.dart';
 
 class RazorpayPaymentScreen extends StatefulWidget {
   final Map<String, dynamic> bookingData;
+  final VoidCallback? onBookingSuccess;
 
-  const RazorpayPaymentScreen({super.key, required this.bookingData});
+  const RazorpayPaymentScreen({
+    super.key, 
+    required this.bookingData,
+    this.onBookingSuccess,
+  });
 
   @override
   State<RazorpayPaymentScreen> createState() => _RazorpayPaymentScreenState();
@@ -660,6 +665,10 @@ class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
                   } else {
                     print('Already at first route');
                   }
+                  // Call the callback to refresh the booking screen
+                  if (widget.onBookingSuccess != null) {
+                    widget.onBookingSuccess!();
+                  }
                 } catch (e) {
                   print('Navigation error: $e');
                   if (mounted && Navigator.of(context).canPop()) {
@@ -828,6 +837,10 @@ class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
                 try {
                   if (Navigator.of(context).canPop()) {
                     Navigator.of(context).popUntil((route) => route.isFirst);
+                    // Call the callback to refresh the booking screen
+                    if (widget.onBookingSuccess != null) {
+                      widget.onBookingSuccess!();
+                    }
                     // Navigate to My Bookings page
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -853,6 +866,10 @@ class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
                 try {
                   if (Navigator.of(context).canPop()) {
                     Navigator.of(context).popUntil((route) => route.isFirst);
+                  }
+                  // Call the callback to refresh the booking screen
+                  if (widget.onBookingSuccess != null) {
+                    widget.onBookingSuccess!();
                   }
                 } catch (e) {
                   print('Navigation error: $e');

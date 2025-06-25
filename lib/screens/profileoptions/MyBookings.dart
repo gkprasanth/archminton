@@ -284,9 +284,52 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     
     final status = booking['status']?.toString() ?? 'Unknown';
     final bookingDate = booking['bookingDate']?.toString() ?? booking['date']?.toString() ?? '';
-    final timeSlot = booking['timeSlot']?.toString() ?? 
-                    booking['time']?.toString() ?? 
-                    '${booking['startTime'] ?? ''} - ${booking['endTime'] ?? ''}';
+    // Extract time slot from different possible sources
+    String timeSlot = 'No time';
+    
+    // First check for direct startTime and endTime in booking
+    if (booking['startTime'] != null && booking['endTime'] != null) {
+      final startTime = booking['startTime']?.toString() ?? '';
+      final endTime = booking['endTime']?.toString() ?? '';
+      if (startTime.isNotEmpty && endTime.isNotEmpty) {
+        timeSlot = '$startTime - $endTime';
+      }
+    }
+    // Then check if timeSlot is a Map object
+    else if (booking['timeSlot'] != null && booking['timeSlot'] is Map) {
+      final timeSlotObj = booking['timeSlot'] as Map;
+      final startTime = timeSlotObj['startTime']?.toString() ?? '';
+      final endTime = timeSlotObj['endTime']?.toString() ?? '';
+      if (startTime.isNotEmpty && endTime.isNotEmpty) {
+        timeSlot = '$startTime - $endTime';
+      }
+    }
+    // Then check if timeSlot is a string and doesn't contain object notation
+    else if (booking['timeSlot'] != null && 
+             booking['timeSlot'].toString().isNotEmpty &&
+             !booking['timeSlot'].toString().startsWith('{')) {
+      timeSlot = booking['timeSlot'].toString();
+    }
+    // Then check for time field
+    else if (booking['time'] != null && 
+             booking['time'].toString().isNotEmpty &&
+             !booking['time'].toString().startsWith('{')) {
+      timeSlot = booking['time'].toString();
+    }
+    
+    // If still showing object notation, extract from it
+    if (timeSlot.startsWith('{') && timeSlot.contains('startTime')) {
+      // Try to extract time from object string like "{id: 103, startTime: 06:00, endTime: 07:00}"
+      final regex = RegExp(r'startTime[:\s]*([^,}]+)[,}].*endTime[:\s]*([^,}]+)');
+      final match = regex.firstMatch(timeSlot);
+      if (match != null) {
+        final start = match.group(1)?.trim() ?? '';
+        final end = match.group(2)?.trim() ?? '';
+        if (start.isNotEmpty && end.isNotEmpty) {
+          timeSlot = '$start - $end';
+        }
+      }
+    }
     
     final courtName = booking['court']?['name']?.toString() ?? 
                      booking['courtName']?.toString() ?? 

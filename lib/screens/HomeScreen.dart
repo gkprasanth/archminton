@@ -4,6 +4,7 @@ import 'package:archminton/screens/LearnScreen.dart';
 import 'package:archminton/screens/LoginScreen.dart';
 import 'package:archminton/screens/Notification.dart';
 import 'package:archminton/screens/VenuScreen.dart';
+import 'package:archminton/screens/profileoptions/Memberships.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import '../constants/constants.dart';
+import '../services/api_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,10 +33,13 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   List<dynamic> venues = [];
-  List<dynamic> membershipRequests = [];
+
+  List<dynamic> userMemberships = [];
+  List<dynamic> courseEnrollments = [];
   List<dynamic> bannerImages = [];
   bool isLoading = true;
   bool isLoadingMemberships = true;
+  bool isLoadingCourses = true;
   bool isLoadingBanners = true;
   bool hasError = false;
   String errorMessage = "";
@@ -115,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     fetchVenues();
-    fetchMembershipRequests();
+    fetchUserSubscriptions();
     fetchBannerImages();
   }
 
@@ -232,62 +237,124 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> fetchMembershipRequests() async {
-    print('🚀 Starting fetchMembershipRequests...');
+  Future<void> fetchUserSubscriptions() async {
+    print('🚀 Starting fetchUserSubscriptions...');
     
     try {
       final prefs = await SharedPreferences.getInstance();
       final accessToken = prefs.getString('accessToken');
       
       if (accessToken == null) {
-        print('❌ No access token found for membership requests');
+        print('❌ No access token found for user subscriptions');
         if (!mounted) return;
         setState(() {
           isLoadingMemberships = false;
+          isLoadingCourses = false;
         });
         return;
       }
 
-      final url = '$baseUrl/membership-requests';
-      print('🌐 Making membership API request to: $url');
-
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
+      // Fetch only memberships and courses (no membership requests)
+      await Future.wait([
+        _fetchUserMemberships(),
+        _fetchCourseEnrollments(),
+        _loadCourseEnrollments(), // Try both methods
+      ]).timeout(
+        const Duration(seconds: 90), // 90 seconds total timeout
+        onTimeout: () {
+          print('⏰ HomeScreen: fetchUserSubscriptions timed out after 90 seconds');
+          if (mounted) {
+            setState(() {
+              isLoadingMemberships = false;
+              isLoadingCourses = false;
+            });
+          }
+          throw Exception('Request timed out');
         },
       );
-
-      print('📡 Membership API Response:');
-      print('   - Status Code: ${response.statusCode}');
-      print('   - Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print('✅ Successfully parsed membership JSON response');
-        
-        if (!mounted) return;
-        setState(() {
-          membershipRequests = data is List ? data : (data['data'] ?? []);
-          isLoadingMemberships = false;
-        });
-        print('✅ Membership requests state updated successfully');
-      } else {
-        print('❌ Membership API request failed with status ${response.statusCode}');
-        if (!mounted) return;
-        setState(() {
-          isLoadingMemberships = false;
-        });
-      }
+      
+      print('✅ HomeScreen: fetchUserSubscriptions completed successfully');
+      
     } catch (e, stackTrace) {
-      print('💥 Exception in fetchMembershipRequests:');
+      print('💥 Exception in fetchUserSubscriptions:');
       print('   - Error: $e');
       print('   - Stack trace: $stackTrace');
       
       if (!mounted) return;
       setState(() {
         isLoadingMemberships = false;
+        isLoadingCourses = false;
+      });
+    }
+  }
+
+
+
+  Future<void> _fetchUserMemberships() async {
+    try {
+      print('🔄 HomeScreen: Starting to fetch user memberships...');
+      final memberships = await ApiService.getUserMemberships();
+      if (!mounted) return;
+      setState(() {
+        userMemberships = memberships;
+        isLoadingMemberships = false;
+      });
+      print('✅ HomeScreen: Successfully fetched ${memberships.length} user memberships');
+    } catch (e) {
+      print('❌ HomeScreen: Error fetching user memberships: $e');
+      if (!mounted) return;
+      setState(() {
+        userMemberships = [];
+        isLoadingMemberships = false;
+      });
+    }
+  }
+
+  Future<void> _fetchCourseEnrollments() async {
+    try {
+      print('🔄 HomeScreen: Starting to fetch course enrollments...');
+      final enrollments = await ApiService.getUserCourseEnrollments();
+      print('📋 HomeScreen: Raw course enrollments data: $enrollments');
+      if (!mounted) return;
+      setState(() {
+        courseEnrollments = enrollments;
+        isLoadingCourses = false;
+      });
+      print('✅ HomeScreen: Successfully fetched ${enrollments.length} course enrollments');
+      if (enrollments.isNotEmpty) {
+        print('📄 HomeScreen: First enrollment sample: ${enrollments.first}');
+      }
+    } catch (e) {
+      print('❌ HomeScreen: Error fetching course enrollments: $e');
+      if (!mounted) return;
+      setState(() {
+        courseEnrollments = [];
+        isLoadingCourses = false;
+      });
+    }
+  }
+
+  // Add the same method as MembershipsScreen for consistency
+  Future<void> _loadCourseEnrollments() async {
+    try {
+      print('🔄 HomeScreen: Starting to load course enrollments...');
+      final enrollments = await ApiService.getUserCourseEnrollments();
+      print('📋 HomeScreen: Raw course enrollments data from _loadCourseEnrollments: $enrollments');
+      if (!mounted) return;
+      setState(() {
+        courseEnrollments = enrollments;
+        isLoadingCourses = false;
+      });
+      print('✅ HomeScreen: Successfully loaded ${enrollments.length} course enrollments');
+      if (enrollments.isNotEmpty) {
+        print('📄 HomeScreen: First enrollment sample: ${enrollments.first}');
+      }
+    } catch (e) {
+      print('❌ HomeScreen: Error loading course enrollments: $e');
+      if (!mounted) return;
+      setState(() {
+        courseEnrollments = [];
+        isLoadingCourses = false;
       });
     }
   }
@@ -439,18 +506,41 @@ class _HomeScreenState extends State<HomeScreen> {
                                     color: Colors.white.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: IconButton(
-                                    icon: const Icon(Icons.notifications_outlined),
-                                    color: Colors.white,
-                                    iconSize: 24,
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => const NotificationScreen(),
-                                        ),
-                                      );
-                                    },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.school),
+                                        color: Colors.white,
+                                        iconSize: 18,
+                                        onPressed: () {
+                                          print('🎓 Manual course enrollments load triggered');
+                                          _loadCourseEnrollments();
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.refresh),
+                                        color: Colors.white,
+                                        iconSize: 20,
+                                        onPressed: () {
+                                          print('🔄 Manual refresh triggered');
+                                          fetchUserSubscriptions();
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.notifications_outlined),
+                                        color: Colors.white,
+                                        iconSize: 24,
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => const NotificationScreen(),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -598,7 +688,8 @@ class _HomeScreenState extends State<HomeScreen> {
         destination = const Bookscreen();
         break;
       case 'events':
-        destination = const EventScreen();
+        // Events pane is a dead link - do nothing
+        destination = null;
         break;
     }
 
@@ -747,8 +838,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   Widget _buildSubscriptionsSection() {
-    // Don't show anything if loading is complete and there are no memberships
-    if (!isLoadingMemberships && membershipRequests.isEmpty) {
+    // Check if we have any subscriptions to show
+    final hasActiveSubscriptions = userMemberships.isNotEmpty || courseEnrollments.isNotEmpty;
+    final isStillLoading = isLoadingMemberships || isLoadingCourses;
+    
+    print('🏠 _buildSubscriptionsSection called:');
+    print('   - userMemberships.length: ${userMemberships.length}');
+    print('   - courseEnrollments.length: ${courseEnrollments.length}');
+    print('   - hasActiveSubscriptions: $hasActiveSubscriptions');
+    print('   - isStillLoading: $isStillLoading');
+    print('   - isLoadingMemberships: $isLoadingMemberships');
+    print('   - isLoadingCourses: $isLoadingCourses');
+    
+    // Don't show anything if loading is complete and there are no subscriptions
+          if (!isStillLoading && !hasActiveSubscriptions) {
+      print('   - Returning SizedBox.shrink() - no subscriptions to show');
       return const SizedBox.shrink();
     }
 
@@ -767,11 +871,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 letterSpacing: 0.5,
               ),
             ),
-            if (!isLoadingMemberships && membershipRequests.isNotEmpty)
+            if (!isStillLoading && hasActiveSubscriptions)
               TextButton(
                 onPressed: () {
-                  // Navigate to full subscriptions page
-                  // TODO: Implement navigation to subscriptions page
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MembershipsScreen(),
+                    ),
+                  );
                 },
                 child: Text(
                   "View All",
@@ -791,7 +899,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSubscriptionsList() {
-    if (isLoadingMemberships) {
+    if (isLoadingMemberships || isLoadingCourses) {
       return Container(
         height: 120,
         decoration: BoxDecoration(
@@ -811,24 +919,60 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // Combine only memberships and course enrollments (no membership requests)
+    List<Map<String, dynamic>> allSubscriptions = [];
+    
+    print('🔍 Building subscriptions list:');
+    print('   - userMemberships count: ${userMemberships.length}');
+    print('   - courseEnrollments count: ${courseEnrollments.length}');
+    
+    // Add active memberships
+    for (var membership in userMemberships) {
+      print('   - Adding membership: ${membership['package']?['name']} (${membership['status']})');
+      allSubscriptions.add({
+        'type': 'membership',
+        'data': membership,
+        'title': membership['package']?['name'] ?? 'Membership Package',
+        'status': membership['status'] ?? 'ACTIVE',
+        'id': membership['id'],
+        'createdAt': membership['createdAt'],
+      });
+    }
+    
+    // Add course enrollments
+    for (var enrollment in courseEnrollments) {
+      print('   - Adding course: ${enrollment['course']?['name']} (${enrollment['status']})');
+      allSubscriptions.add({
+        'type': 'course',
+        'data': enrollment,
+        'title': enrollment['course']?['name'] ?? 'Course Enrollment',
+        'status': enrollment['status'] ?? 'ACTIVE',
+        'id': enrollment['id'],
+        'createdAt': enrollment['createdAt'],
+      });
+    }
+
+    print('   - Total subscriptions to display: ${allSubscriptions.length}');
+
     return SizedBox(
-      height: 140,
+      height: 170,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: membershipRequests.length,
+        itemCount: allSubscriptions.length,
         itemBuilder: (context, index) {
-          final membership = membershipRequests[index];
-          return _buildSubscriptionCard(membership);
+          final subscription = allSubscriptions[index];
+          return _buildSubscriptionCard(subscription);
         },
       ),
     );
   }
 
-  Widget _buildSubscriptionCard(Map<String, dynamic> membership) {
-    final status = membership['status'] ?? 'UNKNOWN';
-    final societyId = membership['societyId'];
-    final createdAt = membership['createdAt'];
-    final reviewNote = membership['reviewNote'];
+  Widget _buildSubscriptionCard(Map<String, dynamic> subscription) {
+    final type = subscription['type'] ?? 'unknown';
+    final data = subscription['data'] ?? {};
+    final title = subscription['title'] ?? 'Subscription';
+    final status = subscription['status'] ?? 'UNKNOWN';
+    final createdAt = subscription['createdAt'];
     
     // Parse date
     String dateText = 'Unknown Date';
@@ -845,6 +989,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Color statusColor;
     String statusText;
     IconData statusIcon;
+    IconData typeIcon;
     
     switch (status.toUpperCase()) {
       case 'PENDING':
@@ -853,6 +998,7 @@ class _HomeScreenState extends State<HomeScreen> {
         statusIcon = Icons.hourglass_empty;
         break;
       case 'APPROVED':
+      case 'ACTIVE':
         statusColor = Colors.green;
         statusText = 'ACTIVE';
         statusIcon = Icons.check_circle;
@@ -862,11 +1008,44 @@ class _HomeScreenState extends State<HomeScreen> {
         statusText = 'REJECTED';
         statusIcon = Icons.cancel;
         break;
+      case 'COMPLETED':
+        statusColor = Colors.blue;
+        statusText = 'COMPLETED';
+        statusIcon = Icons.check_circle;
+        break;
+      case 'CANCELLED':
+        statusColor = Colors.red;
+        statusText = 'CANCELLED';
+        statusIcon = Icons.cancel;
+        break;
       default:
         statusColor = Colors.grey;
         statusText = 'INACTIVE';
         statusIcon = Icons.help_outline;
     }
+
+    // Determine type icon and additional info
+    switch (type) {
+      case 'membership':
+        typeIcon = Icons.card_membership;
+        break;
+      case 'membership_request':
+        typeIcon = Icons.pending;
+        break;
+      case 'course':
+        typeIcon = Icons.school;
+        break;
+      default:
+        typeIcon = Icons.sports_tennis;
+    }
+
+    // Get user name from SharedPreferences
+    String userName = "User";
+    _getUserName().then((name) {
+      if (name != null) {
+        userName = name;
+      }
+    });
 
     return Container(
       width: 280,
@@ -895,7 +1074,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Expanded(
                 child: Text(
-                  "Swimming Coaching", // Default title, could be dynamic
+                  title,
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -922,19 +1101,42 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             children: [
               Icon(
                 Icons.person,
-                size: 16,
+                size: 14,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              FutureBuilder<String?>(
+                future: _getUserName(),
+                builder: (context, snapshot) {
+                  return Text(
+                    snapshot.data ?? "User",
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Icon(
+                Icons.confirmation_number,
+                size: 14,
                 color: Colors.grey[600],
               ),
               const SizedBox(width: 4),
               Text(
-                "P Sathya Krishiv", // Could be dynamic from user data
+                "${type.toUpperCase().substring(0, 3)}${subscription['id']?.toString().padLeft(5, '0') ?? '00000'}",
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 12,
                   color: Colors.grey[600],
                 ),
               ),
@@ -944,57 +1146,25 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               Icon(
-                Icons.confirmation_number,
-                size: 16,
-                color: Colors.grey[600],
-              ),
-              const SizedBox(width: 4),
-              Text(
-                "PSA${membership['id']?.toString().padLeft(5, '0') ?? '00000'}",
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(
-                Icons.sports_tennis,
-                size: 16,
-                color: Colors.grey[600],
-              ),
-              const SizedBox(width: 4),
-              Text(
-                "Swimming",
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Icon(
-                Icons.location_on,
-                size: 16,
+                typeIcon,
+                size: 14,
                 color: Colors.grey[600],
               ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  "Rainbow Vistas...", // Could be dynamic from society data
+                  _getSubscriptionTypeText(type, data),
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
+                    fontSize: 11,
                     color: Colors.grey[600],
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1002,14 +1172,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Icon(
                     Icons.calendar_today,
-                    size: 16,
+                    size: 14,
                     color: Colors.grey[600],
                   ),
                   const SizedBox(width: 4),
                   Text(
                     dateText,
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: 12,
                       color: Colors.grey[600],
                     ),
                   ),
@@ -1018,20 +1188,27 @@ class _HomeScreenState extends State<HomeScreen> {
               if (status.toUpperCase() == 'PENDING')
                 ElevatedButton(
                   onPressed: () {
-                    // TODO: Implement renew functionality
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MembershipsScreen(),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: Text(
-                    "Renew",
+                    "View",
                     style: GoogleFonts.poppins(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1041,6 +1218,21 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  String _getSubscriptionTypeText(String type, Map<String, dynamic> data) {
+    switch (type) {
+      case 'membership':
+        final packageName = data['package']?['name'] ?? 'Membership';
+        final venue = data['venue']?['name'] ?? data['package']?['venue']?['name'];
+        return venue != null ? '$packageName at $venue' : packageName;
+      case 'course':
+        final courseName = data['course']?['name'] ?? 'Course';
+        final venue = data['course']?['venue']?['name'];
+        return venue != null ? '$courseName at $venue' : courseName;
+      default:
+        return 'Subscription';
+    }
   }
 
   Widget _buildVenuesSection() {

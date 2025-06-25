@@ -11,30 +11,44 @@ class MembershipsScreen extends StatefulWidget {
 }
 
 class _MembershipsScreenState extends State<MembershipsScreen> {
-  List<Map<String, dynamic>> membershipRequests = [];
+
+  List<Map<String, dynamic>> userMemberships = [];
+  List<Map<String, dynamic>> courseEnrollments = [];
   bool isLoading = true;
   String? errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadMembershipRequests();
+    _loadAllSubscriptions();
   }
 
-  Future<void> _loadMembershipRequests() async {
+  Future<void> _loadAllSubscriptions() async {
     try {
+      print('🚀 MembershipsScreen: Starting _loadAllSubscriptions...');
       setState(() {
         isLoading = true;
         errorMessage = null;
       });
 
-      final requests = await ApiService.getMembershipRequests();
+      // Load only memberships and courses (no membership requests)
+      await Future.wait([
+        _loadUserMemberships(),
+        _loadCourseEnrollments(),
+      ]).timeout(
+        const Duration(seconds: 90), // 90 seconds total timeout
+        onTimeout: () {
+          print('⏰ MembershipsScreen: _loadAllSubscriptions timed out after 90 seconds');
+          throw Exception('Request timed out');
+        },
+      );
       
       setState(() {
-        membershipRequests = requests;
         isLoading = false;
       });
+      print('✅ MembershipsScreen: _loadAllSubscriptions completed successfully');
     } catch (e) {
+      print('❌ MembershipsScreen: Error in _loadAllSubscriptions: $e');
       setState(() {
         errorMessage = e.toString().replaceAll('Exception: ', '');
         isLoading = false;
@@ -42,80 +56,57 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
     }
   }
 
-  Future<void> _deleteMembershipRequest(int requestId) async {
+
+
+  Future<void> _loadUserMemberships() async {
     try {
-      await ApiService.deleteMembershipRequest(requestId);
-      
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Membership request deleted successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-      
-      // Reload the list
-      _loadMembershipRequests();
+      print('🔄 MembershipsScreen: Starting to load user memberships...');
+      final memberships = await ApiService.getUserMemberships();
+      setState(() {
+        userMemberships = memberships;
+      });
+      print('✅ MembershipsScreen: Successfully loaded ${memberships.length} user memberships');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error deleting request: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      print('❌ MembershipsScreen: Error loading user memberships: $e');
+      setState(() {
+        userMemberships = [];
+      });
     }
   }
 
-  void _showDeleteConfirmation(int requestId, String societyName) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Delete Request',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'Are you sure you want to delete your membership request for $societyName?',
-          style: GoogleFonts.poppins(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(color: Colors.grey[600]),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteMembershipRequest(requestId);
-            },
-            child: Text(
-              'Delete',
-              style: GoogleFonts.poppins(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  Future<void> _loadCourseEnrollments() async {
+    try {
+      print('🔄 MembershipsScreen: Starting to load course enrollments...');
+      final enrollments = await ApiService.getUserCourseEnrollments();
+      setState(() {
+        courseEnrollments = enrollments;
+      });
+      print('✅ MembershipsScreen: Successfully loaded ${enrollments.length} course enrollments');
+    } catch (e) {
+      print('❌ MembershipsScreen: Error loading course enrollments: $e');
+      setState(() {
+        courseEnrollments = [];
+      });
+    }
   }
+
+
 
   Color _getStatusColor(String status) {
     switch (status.toUpperCase()) {
       case 'PENDING':
         return Colors.orange;
       case 'APPROVED':
+      case 'ACTIVE':
         return Colors.green;
       case 'REJECTED':
         return Colors.red;
+      case 'COMPLETED':
+        return Colors.blue;
+      case 'CANCELLED':
+        return Colors.red;
+      case 'EXPIRED':
+        return Colors.grey;
       default:
         return Colors.grey;
     }
@@ -126,11 +117,30 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
       case 'PENDING':
         return Icons.hourglass_empty;
       case 'APPROVED':
+      case 'ACTIVE':
         return Icons.check_circle;
       case 'REJECTED':
+      case 'CANCELLED':
         return Icons.cancel;
+      case 'COMPLETED':
+        return Icons.check_circle;
+      case 'EXPIRED':
+        return Icons.schedule;
       default:
         return Icons.help;
+    }
+  }
+
+  IconData _getTypeIcon(String type) {
+    switch (type) {
+      case 'membership':
+        return Icons.card_membership;
+      case 'membership_request':
+        return Icons.pending;
+      case 'course':
+        return Icons.school;
+      default:
+        return Icons.sports_tennis;
     }
   }
 
@@ -143,13 +153,199 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
     }
   }
 
-  Widget _buildMembershipCard(Map<String, dynamic> request) {
-    final status = request['status']?.toString() ?? 'UNKNOWN';
+  List<Map<String, dynamic>> _getAllSubscriptions() {
+    List<Map<String, dynamic>> allSubscriptions = [];
+    
+    // Add active memberships
+    for (var membership in userMemberships) {
+      allSubscriptions.add({
+        'type': 'membership',
+        'data': membership,
+        'title': membership['package']?['name'] ?? 'Membership Package',
+        'status': membership['status'] ?? 'ACTIVE',
+        'id': membership['id'],
+        'createdAt': membership['createdAt'],
+        'canDelete': false,
+      });
+    }
+    
+    // Add course enrollments
+    for (var enrollment in courseEnrollments) {
+      allSubscriptions.add({
+        'type': 'course',
+        'data': enrollment,
+        'title': enrollment['course']?['name'] ?? 'Course Enrollment',
+        'status': enrollment['status'] ?? 'ACTIVE',
+        'id': enrollment['id'],
+        'createdAt': enrollment['createdAt'],
+        'canDelete': false,
+      });
+    }
+
+    // Sort by creation date (newest first)
+    allSubscriptions.sort((a, b) {
+      try {
+        final dateA = DateTime.parse(a['createdAt'] ?? '');
+        final dateB = DateTime.parse(b['createdAt'] ?? '');
+        return dateB.compareTo(dateA);
+      } catch (e) {
+        return 0;
+      }
+    });
+
+    return allSubscriptions;
+  }
+
+  String _getSubscriptionTypeText(String type, Map<String, dynamic> data) {
+    switch (type) {
+      case 'membership':
+        final packageName = data['package']?['name'] ?? 'Membership';
+        final venue = data['venue']?['name'] ?? data['package']?['venue']?['name'];
+        return venue != null ? '$packageName at $venue' : packageName;
+      case 'course':
+        final courseName = data['course']?['name'] ?? 'Course';
+        final venue = data['course']?['venue']?['name'];
+        return venue != null ? '$courseName at $venue' : courseName;
+      default:
+        return 'Subscription';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'My Subscriptions',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: Colors.green[600],
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadAllSubscriptions,
+          ),
+        ],
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage("assets/images/bg.jpg"),
+            opacity: 0.05,
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: RefreshIndicator(
+          onRefresh: _loadAllSubscriptions,
+          child: isLoading 
+              ? _buildLoadingState()
+              : errorMessage != null
+                  ? _buildErrorState()
+                  : _buildSubscriptionsList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Loading subscriptions...'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 80,
+              color: Colors.red[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error Loading Subscriptions',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              errorMessage ?? 'Something went wrong',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadAllSubscriptions,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubscriptionsList() {
+    final allSubscriptions = _getAllSubscriptions();
+    
+    if (allSubscriptions.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: allSubscriptions.length,
+      itemBuilder: (context, index) {
+        final subscription = allSubscriptions[index];
+        return _buildSubscriptionCard(subscription);
+      },
+    );
+  }
+
+  Widget _buildSubscriptionCard(Map<String, dynamic> subscription) {
+    final type = subscription['type'] ?? 'unknown';
+    final data = subscription['data'] ?? {};
+    final title = subscription['title'] ?? 'Subscription';
+    final status = subscription['status'] ?? 'UNKNOWN';
+    final createdAt = subscription['createdAt'];
+    final canDelete = subscription['canDelete'] ?? false;
+    
     final statusColor = _getStatusColor(status);
     final statusIcon = _getStatusIcon(status);
+    final typeIcon = _getTypeIcon(type);
     
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 16),
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -157,18 +353,32 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with status
+            // Header with title and status
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    'Society ID: ${request['societyId'] ?? 'N/A'}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        typeIcon,
+                        size: 20,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Container(
@@ -199,36 +409,24 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
             
             const SizedBox(height: 12),
             
-            // Request details
-            if (request['reviewNote'] != null && request['reviewNote'].toString().isNotEmpty)
-              _buildDetailRow('Review Note', request['reviewNote'].toString()),
+            // Subscription details
+            _buildDetailRow('Type', _getSubscriptionTypeText(type, data)),
+            _buildDetailRow('ID', "${type.toUpperCase().substring(0, 3)}${subscription['id']?.toString().padLeft(5, '0') ?? '00000'}"),
+            _buildDetailRow('Created', _formatDate(createdAt?.toString() ?? '')),
             
-            _buildDetailRow('Created', _formatDate(request['createdAt']?.toString() ?? '')),
-            _buildDetailRow('Updated', _formatDate(request['updatedAt']?.toString() ?? '')),
+            // Additional details based on type
+            if (type == 'membership_request' && data['reviewNote'] != null && data['reviewNote'].toString().isNotEmpty)
+              _buildDetailRow('Review Note', data['reviewNote'].toString()),
+            
+            if (type == 'membership' && data['endDate'] != null)
+              _buildDetailRow('Expires', _formatDate(data['endDate'].toString())),
+            
+            if (type == 'course' && data['course']?['endDate'] != null)
+              _buildDetailRow('Course Ends', _formatDate(data['course']['endDate'].toString())),
             
             const SizedBox(height: 16),
             
-            // Actions
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (status.toUpperCase() == 'PENDING')
-                  TextButton.icon(
-                    onPressed: () => _showDeleteConfirmation(
-                      request['id'] ?? 0,
-                      'Society ${request['societyId']}',
-                    ),
-                    icon: const Icon(Icons.delete, size: 18),
-                    label: Text(
-                      'Delete',
-                      style: GoogleFonts.poppins(fontSize: 14),
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red,
-                    ),
-                  ),
-              ],
-            ),
+
           ],
         ),
       ),
@@ -280,7 +478,7 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No Membership Requests',
+              'No Subscriptions',
               style: GoogleFonts.poppins(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -289,7 +487,7 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'You haven\'t made any membership requests yet.',
+              'You don\'t have any active subscriptions, membership requests, or course enrollments yet.',
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 color: Colors.grey[500],
@@ -298,7 +496,7 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _loadMembershipRequests,
+              onPressed: _loadAllSubscriptions,
               icon: const Icon(Icons.refresh),
               label: const Text('Refresh'),
               style: ElevatedButton.styleFrom(
@@ -312,107 +510,6 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 80,
-              color: Colors.red[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Error Loading Memberships',
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.red[600],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              errorMessage ?? 'Something went wrong',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadMembershipRequests,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          'My Memberships',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: Colors.green[600],
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: _loadMembershipRequests,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadMembershipRequests,
-        child: isLoading
-            ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(color: Colors.green),
-                    SizedBox(height: 16),
-                    Text('Loading membership requests...'),
-                  ],
-                ),
-              )
-            : errorMessage != null
-                ? _buildErrorState()
-                : membershipRequests.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: membershipRequests.length,
-                        itemBuilder: (context, index) {
-                          return _buildMembershipCard(membershipRequests[index]);
-                        },
-                      ),
       ),
     );
   }
