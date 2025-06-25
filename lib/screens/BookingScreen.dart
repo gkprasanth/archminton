@@ -489,6 +489,65 @@ class _BookingScreenState extends State<BookingScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
+                  
+                  // Private venue notification banner
+                  if (courts.isNotEmpty) ...[
+                    Builder(
+                      builder: (context) {
+                        final selectedSportName = sports.isNotEmpty && selectedSport < sports.length 
+                            ? sports[selectedSport] 
+                            : '';
+                        final filteredCourts = courts.where((court) => 
+                          court['sportType'].toString().toUpperCase().contains(selectedSportName)
+                        ).toList();
+                        
+                        bool isPrivateVenue = false;
+                        if (filteredCourts.isNotEmpty) {
+                          final firstCourt = filteredCourts.first;
+                          final venue = firstCourt['venue'];
+                          if (venue != null) {
+                            final venueType = venue['venueType']?.toString().toUpperCase();
+                            final societyId = venue['societyId'];
+                            isPrivateVenue = venueType == 'PRIVATE' || societyId != null;
+                          }
+                        }
+                        
+                        if (isPrivateVenue) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              border: Border.all(color: Colors.orange.shade200),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange.shade700,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Private Venue: You can book only one slot per day at this venue',
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.orange.shade800,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ],
               ),
             ),
@@ -946,7 +1005,7 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  void _navigateToSummary() {
+  void _navigateToSummary() async {
     if (selectedSlotIndex == null || selectedCourtIndex == null || sports.isEmpty) {
       print('❌ Cannot navigate: selectedSlotIndex=$selectedSlotIndex, selectedCourtIndex=$selectedCourtIndex, sports.length=${sports.length}');
       return;
@@ -967,7 +1026,6 @@ class _BookingScreenState extends State<BookingScreen> {
     
     final courtData = courts[selectedCourtIndex!];
     final court = courtData['court'];
-    
     final slot = courtData['slot'];
     
     // Check if the slot is already booked
@@ -987,6 +1045,79 @@ class _BookingScreenState extends State<BookingScreen> {
       return;
     }
     
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+    
+    try {
+      // Check if user can book this slot (including private venue restrictions)
+      final canBookResult = await ApiService.canUserBookSlot(
+        courtId: courtData['courtId'],
+        timeSlotId: courtData['slotId'],
+        bookingDate: DateFormat('yyyy-MM-dd').format(selectedDate),
+      );
+      
+      // Close loading indicator
+      if (mounted) Navigator.of(context).pop();
+      
+      if (canBookResult['success'] == true) {
+        final canBookData = canBookResult['data'];
+        
+        if (canBookData['canBook'] != true) {
+          // User cannot book this slot
+          final reason = canBookData['reason'] ?? 'You cannot book this slot';
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(reason),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+          
+          // Refresh the slots to get updated availability
+          refreshAfterBooking();
+          return;
+        }
+      } else {
+        // API call failed, show error but allow proceeding
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not verify booking eligibility: ${canBookResult['error'] ?? 'Unknown error'}'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading indicator if still open
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      print('❌ Error checking booking eligibility: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking booking eligibility: $e'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+    
+    // If we reach here, user can proceed with booking
     final slotPrice = slot['pricePerHour'];
     final courtPrice = court['pricePerHour'];
     
@@ -1004,14 +1135,16 @@ class _BookingScreenState extends State<BookingScreen> {
     
     print('🎯 Navigating to summary with data: $bookingData');
     
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => BookingSummaryScreen(
-          bookingData: bookingData,
-          onBookingSuccess: refreshAfterBooking,
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BookingSummaryScreen(
+            bookingData: bookingData,
+            onBookingSuccess: refreshAfterBooking,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 }

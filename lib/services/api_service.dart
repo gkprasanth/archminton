@@ -422,6 +422,59 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> canUserBookSlot({
+    required int courtId,
+    required int timeSlotId,
+    required String bookingDate,
+  }) async {
+    try {
+      final requestHeaders = await headers;
+      final queryParams = {
+        'courtId': courtId.toString(),
+        'timeSlotId': timeSlotId.toString(),
+        'bookingDate': bookingDate,
+      };
+      
+      final uri = Uri.parse('$baseUrl/bookings/can-book').replace(queryParameters: queryParams);
+      print('🌐 API Call: GET $uri');
+      
+      final response = await http.get(
+        uri,
+        headers: requestHeaders,
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Can Book Response Status: ${response.statusCode}');
+      print('📄 Can Book Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        return {
+          'success': true,
+          'data': responseData['data'] ?? responseData,
+        };
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+          return {
+            'success': false,
+            'error': errorData['message'] ?? errorData['error'] ?? 'Unknown error',
+          };
+        } catch (parseError) {
+          return {
+            'success': false,
+            'error': 'HTTP ${response.statusCode} - ${response.body}',
+          };
+        }
+      }
+    } catch (e) {
+      print('💥 Can Book Check Exception: $e');
+      return {
+        'success': false,
+        'error': 'Error checking booking eligibility: $e',
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> createBooking({
     required int courtId,
     required int timeSlotId,
