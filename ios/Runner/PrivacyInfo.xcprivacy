@@ -4,21 +4,26 @@
 <dict>
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
-		<dict/>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
 	</array>
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array>
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
-			<string></string>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
-			<array>
-				<string></string>
-			</array>
+			<array/>
 		</dict>
 	</array>
 	<key>NSPrivacyTrackingDomains</key>
