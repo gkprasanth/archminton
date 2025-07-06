@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "525472168794",
+    "project_id": "vigilant-design-464014-k4",
+    "storage_bucket": "vigilant-design-464014-k4.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:525472168794:android:archminton",
+        "android_client_info": {
+          "package_name": "com.archminton.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "525472168794-android-client.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.archminton.app",
+            "certificate_hash": "SHA1_PLACEHOLDER"
+          }
+        },
+        {
+          "client_id": "525472168794-36ngov09agpjuehshecm1h4qskpvikan.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_android_api_key_placeholder"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "525472168794-36ngov09agpjuehshecm1h4qskpvikan.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "525472168794-9rkf053o6cu2jl5tu2vu6dg5fr07vfjj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.archminton.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+} 

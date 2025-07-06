@@ -3,6 +3,12 @@ import 'package:archminton/screens/profileoptions/FAQ.dart';
 import 'package:archminton/screens/profileoptions/MyBookings.dart';
 import 'package:archminton/screens/profileoptions/Memberships.dart';
 import 'package:archminton/screens/profileoptions/Support.dart';
+import 'package:archminton/screens/profileoptions/TermsAndConditions.dart';
+import 'package:archminton/screens/profileoptions/PrivacyPolicy.dart';
+import 'package:archminton/screens/profileoptions/ShippingPolicy.dart';
+import 'package:archminton/screens/profileoptions/ContactUs.dart';
+import 'package:archminton/screens/profileoptions/CancellationAndRefunds.dart';
+import 'package:archminton/screens/profileoptions/About.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -362,8 +368,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             buildProfileOption(Icons.support_agent_rounded, 'Support', () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const SupportScreen()));
             }),
+            buildProfileOption(Icons.description_outlined, 'Terms & Conditions', () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const TermsAndConditionsScreen()));
+            }),
+            buildProfileOption(Icons.privacy_tip_outlined, 'Privacy Policy', () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()));
+            }),
+            buildProfileOption(Icons.local_shipping_outlined, 'Service Delivery', () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ShippingPolicyScreen()));
+            }),
+            buildProfileOption(Icons.contact_phone_outlined, 'Contact Us', () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ContactUsScreen()));
+            }),
+            buildProfileOption(Icons.cancel_outlined, 'Cancellation & Refunds', () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const CancellationAndRefundsScreen()));
+            }),
             buildProfileOption(Icons.info_outline_rounded, 'About', () {
-              // TODO: Navigate to About
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AboutScreen()));
             }),
             buildProfileOption(Icons.logout, 'Logout', () async {
               await _logout();
