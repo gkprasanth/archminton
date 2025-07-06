@@ -55,31 +55,31 @@ class ApiService {
     }
   }
 
-  // // Google Sign-In
-  // static Future<Map<String, dynamic>> googleSignIn(String idToken, {String? accessToken}) async {
-  //   try {
-  //     final response = await http.post(
-  //       Uri.parse('$baseUrl/auth/google'),
-  //       headers: {'Content-Type': 'application/json'},
-  //       body: jsonEncode({
-  //         'idToken': idToken,
-  //         if (accessToken != null) 'accessToken': accessToken,
-  //       }),
-  //     ).timeout(const Duration(seconds: 30));
+  // Google Sign-In
+  static Future<Map<String, dynamic>> googleSignIn(String idToken, {String? accessToken}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/google'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'idToken': idToken,
+          if (accessToken != null) 'accessToken': accessToken,
+        }),
+      ).timeout(const Duration(seconds: 30));
 
-  //     return {
-  //       'success': response.statusCode == 200,
-  //       'data': jsonDecode(response.body),
-  //       'statusCode': response.statusCode,
-  //     };
-  //   } catch (e) {
-  //     return {
-  //       'success': false,
-  //       'error': e.toString(),
-  //       'statusCode': 0,
-  //     };
-  //   }
-  // }
+      return {
+        'success': response.statusCode == 200,
+        'data': jsonDecode(response.body),
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
 
   // // Apple Sign-In
   // static Future<Map<String, dynamic>> appleSignIn({
