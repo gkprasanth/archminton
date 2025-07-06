@@ -1,6 +1,6 @@
 class AppConstants {
   // Primary endpoint - using direct IP to bypass DNS issues
-  static const String baseUrl = "http://52.66.255.113/api";
+  static const String baseUrl = "https://backend.asynclabs.org/api";
   
   // Alternative endpoints for fallback
   static const List<String> alternativeEndpoints = [
