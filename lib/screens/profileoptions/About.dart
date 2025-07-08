@@ -58,7 +58,7 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 30),
             _buildSection(
               'About Us',
-              'Archminton is a leading sports booking platform that connects sports enthusiasts with premium venues across India. We make it easy to find, book, and play at the best sports facilities in your area.',
+              'Archminton Sports Pvt Ltd is a leading sports booking platform that connects sports enthusiasts with premium venues across India. We make it easy to find, book, and play at the best sports facilities in your area.',
             ),
             _buildSection(
               'Our Mission',
@@ -78,11 +78,11 @@ class AboutScreen extends StatelessWidget {
             ),
             _buildSection(
               'Company Information',
-              'Archminton Sports Private Limited\nFounded: 2024\nHeadquarters: Bangalore, Karnataka\nServing: Major cities across India\nActive Users: 10,000+\nPartner Venues: 500+',
+              'Archminton Sports Pvt Ltd\nFounded: 2020\nHeadquarters: Hyderabad, Telangana\nServing: Major cities across India\nActive Users: 10,000+\nPartner Venues: 500+',
             ),
             _buildSection(
               'Contact Information',
-              'Email: support@archminton.com\nPhone: +91 9876543210\nAddress: 123 Sports Complex Road\nBangalore, Karnataka 560001\nIndia',
+              'Email: support@archminton.in / archmintonsports@gmail.com\nPhone: +91 8008871828 / +91 8008814466\nAddress: 2-57/1/1083, S.A.Society Behind Meridian School\nSiddhi Vinayak Nagar, Madhapur, HITEC City\nHyderabad, Telangana 500081\nIndia',
             ),
             const SizedBox(height: 30),
             Container(

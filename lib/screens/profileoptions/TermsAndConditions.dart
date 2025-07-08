@@ -62,7 +62,7 @@ class TermsAndConditionsScreen extends StatelessWidget {
             ),
             _buildSection(
               'Contact Information',
-              'For any questions regarding these terms and conditions, please contact us at:\n\nEmail: support@archminton.com\nPhone: +91 9876543210\nAddress: Archminton Sports Private Limited\n123 Sports Complex Road\nBangalore, Karnataka 560001',
+              'For any questions regarding these terms and conditions, please contact us at:\n\nEmail: support@archminton.in\nPhone: +91 8008871828\nAddress: Archminton Sports Pvt Ltd\n2-57/1/1083, S.A.Society Behind Meridian School\nSiddhi Vinayak Nagar, Madhapur, HITEC City\nHyderabad, Telangana 500081',
             ),
             const SizedBox(height: 30),
             Container(

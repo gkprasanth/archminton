@@ -58,7 +58,7 @@ class ShippingPolicyScreen extends StatelessWidget {
             ),
             _buildSection(
               'Contact for Delivery Issues',
-              'For any service delivery issues:\n\n• In-app support chat (24/7)\n• Email: support@archminton.com\n• Phone: +91 9876543210\n• Emergency booking helpline: +91 9876543211\n\nWe are committed to ensuring smooth delivery of all our digital services.',
+              'For any service delivery issues:\n\n• In-app support chat (24/7)\n• Email: support@archminton.in\n• Phone: +91 8008871828\n• Emergency booking helpline: +91 8008814466\n\nWe are committed to ensuring smooth delivery of all our digital services.',
             ),
             _buildSection(
               'Geographic Coverage',

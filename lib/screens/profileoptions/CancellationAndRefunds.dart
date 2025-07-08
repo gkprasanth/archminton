@@ -70,11 +70,11 @@ class CancellationAndRefundsScreen extends StatelessWidget {
             ),
             _buildSection(
               'Dispute Resolution',
-              'For refund disputes:\n\n• Contact customer support within 7 days\n• Provide booking ID and transaction details\n• Allow 48 hours for initial response\n• Escalation to management if needed\n• Final resolution within 15 business days\n• Email: disputes@archminton.com',
+              'For refund disputes:\n\n• Contact customer support within 7 days\n• Provide booking ID and transaction details\n• Allow 48 hours for initial response\n• Escalation to management if needed\n• Final resolution within 15 business days\n• Email: support@archminton.in',
             ),
             _buildSection(
               'Contact for Cancellations',
-              'For cancellation assistance:\n\n• Phone: +91 9876543210\n• Email: support@archminton.com\n• Emergency cancellation: +91 9876543211\n• In-app support chat (24/7)\n• Support hours: 6:00 AM - 10:00 PM daily',
+              'For cancellation assistance:\n\n• Phone: +91 8008871828\n• Email: support@archminton.in\n• Emergency cancellation: +91 8008814466\n• In-app support chat (24/7)\n• Support hours: 6:00 AM - 10:00 PM daily',
             ),
             const SizedBox(height: 30),
             Container(

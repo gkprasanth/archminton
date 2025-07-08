@@ -30,7 +30,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             const SizedBox(height: 20),
             _buildSection(
               'Introduction',
-              'Archminton Sports Private Limited ("Archminton," the "Company," "we," "us," and "our,") respects your privacy and is committed to protecting it through our compliance with this privacy policy. This policy describes:\n\n• The types of information that we may collect from you when you access or use our mobile application and services\n• Our practices for collecting, using, maintaining, protecting and disclosing that information\n\nBy accessing or using our services, you agree to this privacy policy.',
+              'Archminton Sports Pvt Ltd ("Archminton," the "Company," "we," "us," and "our,") respects your privacy and is committed to protecting it through our compliance with this privacy policy. This policy describes:\n\n• The types of information that we may collect from you when you access or use our mobile application and services\n• Our practices for collecting, using, maintaining, protecting and disclosing that information\n\nBy accessing or using our services, you agree to this privacy policy.',
             ),
             _buildSection(
               'Information We Collect',
@@ -50,7 +50,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             ),
             _buildSection(
               'Your Rights',
-              'You have the right to:\n\n• Access, update, or delete your personal information\n• Opt-out of promotional communications\n• Request a copy of your data\n• Withdraw consent for data processing\n• Request restriction of processing\n• Lodge a complaint with relevant authorities\n\nTo exercise these rights, please contact us at privacy@archminton.com.',
+              'You have the right to:\n\n• Access, update, or delete your personal information\n• Opt-out of promotional communications\n• Request a copy of your data\n• Withdraw consent for data processing\n• Request restriction of processing\n• Lodge a complaint with relevant authorities\n\nTo exercise these rights, please contact us at support@archminton.in.',
             ),
             _buildSection(
               'Data Retention',
@@ -66,7 +66,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             ),
             _buildSection(
               'Contact Information',
-              'If you have any questions about this privacy policy, please contact us at:\n\nEmail: privacy@archminton.com\nPhone: +91 9876543210\nAddress: Archminton Sports Private Limited\n123 Sports Complex Road\nBangalore, Karnataka 560001',
+              'If you have any questions about this privacy policy, please contact us at:\n\nEmail: support@archminton.in\nPhone: +91 8008871828\nAddress: Archminton Sports Pvt Ltd\n2-57/1/1083, S.A.Society Behind Meridian School\nSiddhi Vinayak Nagar, Madhapur, HITEC City\nHyderabad, Telangana 500081',
             ),
             const SizedBox(height: 30),
             Container(

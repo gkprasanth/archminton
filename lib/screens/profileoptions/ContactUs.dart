@@ -37,27 +37,27 @@ class ContactUsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 30),
-            _buildContactCard(
-              icon: Icons.phone,
-              title: 'Phone Support',
-              subtitle: 'Call us for immediate assistance',
-              details: '+91 9876543210',
-              onTap: () => _makePhoneCall('+919876543210'),
-            ),
-            _buildContactCard(
-              icon: Icons.email,
-              title: 'Email Support',
-              subtitle: 'Send us your queries and feedback',
-              details: 'support@archminton.com',
-              onTap: () => _sendEmail('support@archminton.com'),
-            ),
-            _buildContactCard(
-              icon: Icons.location_on,
-              title: 'Office Address',
-              subtitle: 'Visit our office for in-person support',
-              details: 'Archminton Sports Private Limited\n123 Sports Complex Road\nBangalore, Karnataka 560001\nIndia',
-              onTap: () => _openMap(),
-            ),
+                         _buildContactCard(
+               icon: Icons.phone,
+               title: 'Phone Support',
+               subtitle: 'Call us for immediate assistance',
+               details: '+91 8008871828 / +91 8008814466',
+               onTap: () => _makePhoneCall('+918008871828'),
+             ),
+                         _buildContactCard(
+               icon: Icons.email,
+               title: 'Email Support',
+               subtitle: 'Send us your queries and feedback',
+               details: 'support@archminton.in / archmintonsports@gmail.com',
+               onTap: () => _sendEmail('support@archminton.in'),
+             ),
+                         _buildContactCard(
+               icon: Icons.location_on,
+               title: 'Office Address',
+               subtitle: 'Visit our office for in-person support',
+               details: 'Archminton Sports Pvt Ltd\n2-57/1/1083, S.A.Society Behind Meridian School\nSiddhi Vinayak Nagar, Madhapur, HITEC City\nHyderabad, Telangana 500081\nIndia',
+               onTap: () => _openMap(),
+             ),
             _buildContactCard(
               icon: Icons.access_time,
               title: 'Support Hours',
@@ -72,13 +72,13 @@ class ContactUsScreen extends StatelessWidget {
               details: 'Available 24/7 within the app',
               onTap: () => _openLiveChat(context),
             ),
-            _buildContactCard(
-              icon: Icons.bug_report,
-              title: 'Report Issues',
-              subtitle: 'Report bugs or technical problems',
-              details: 'bugs@archminton.com',
-              onTap: () => _sendEmail('bugs@archminton.com'),
-            ),
+                         _buildContactCard(
+               icon: Icons.bug_report,
+               title: 'Report Issues',
+               subtitle: 'Report bugs or technical problems',
+               details: 'support@archminton.in',
+               onTap: () => _sendEmail('support@archminton.in'),
+             ),
             const SizedBox(height: 30),
             Container(
               padding: const EdgeInsets.all(20),
@@ -109,11 +109,11 @@ class ContactUsScreen extends StatelessWidget {
                   const SizedBox(height: 15),
                   Row(
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _makePhoneCall('+919876543211'),
-                          icon: const Icon(Icons.phone, size: 18),
-                          label: const Text('Emergency Call'),
+                                             Expanded(
+                         child: ElevatedButton.icon(
+                           onPressed: () => _makePhoneCall('+918008814466'),
+                           icon: const Icon(Icons.phone, size: 18),
+                           label: const Text('Emergency Call'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
@@ -255,7 +255,7 @@ class ContactUsScreen extends StatelessWidget {
   }
 
   Future<void> _openMap() async {
-    const String address = 'Archminton Sports Private Limited, 123 Sports Complex Road, Bangalore, Karnataka 560001, India';
+    const String address = 'Archminton Sports Pvt Ltd, 2-57/1/1083, S.A.Society Behind Meridian School, Siddhi Vinayak Nagar, Madhapur, HITEC City, Hyderabad, Telangana 500081, India';
     final Uri mapUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
     if (await canLaunchUrl(mapUri)) {
       await launchUrl(mapUri);
