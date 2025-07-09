@@ -8,7 +8,7 @@ import 'package:archminton/main.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+// import 'package:google_sign_in/google_sign_in.dart';
 // import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'ForgotPasswordScreen.dart';
 
@@ -78,9 +78,9 @@ class _LoginTabState extends State<LoginTab> {
   // bool _isAppleLoading = false;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-  );
+  // final GoogleSignIn _googleSignIn = GoogleSignIn(
+  //   scopes: ['email', 'profile'],
+  // );
 
   void _login() async {
     final email = _emailController.text.trim();
@@ -199,113 +199,113 @@ class _LoginTabState extends State<LoginTab> {
     print('   - gender: ${await prefs.getString('gender')}');
   }
 
-  Future<void> _signInWithGoogle() async {
-    setState(() => _isGoogleLoading = true);
+  // Future<void> _signInWithGoogle() async {
+  //   setState(() => _isGoogleLoading = true);
 
-    try {
-      print('🔐 Starting Firebase Google Sign-In process...');
+  //   try {
+  //     print('🔐 Starting Firebase Google Sign-In process...');
       
-      // Sign out first to ensure fresh login
-      await _googleSignIn.signOut();
-      await _auth.signOut();
+  //     // Sign out first to ensure fresh login
+  //     await _googleSignIn.signOut();
+  //     await _auth.signOut();
       
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+  //     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       
-      if (googleUser == null) {
-        print('❌ Google Sign-In was cancelled by user');
-        return;
-      }
+  //     if (googleUser == null) {
+  //       print('❌ Google Sign-In was cancelled by user');
+  //       return;
+  //     }
 
-      print('✅ Google Sign-In successful for: ${googleUser.email}');
+  //     print('✅ Google Sign-In successful for: ${googleUser.email}');
       
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+  //     final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-      if (googleAuth.accessToken == null || googleAuth.idToken == null) {
-        throw Exception('Failed to get Google authentication tokens');
-      }
+  //     if (googleAuth.accessToken == null || googleAuth.idToken == null) {
+  //       throw Exception('Failed to get Google authentication tokens');
+  //     }
 
-      print('🔑 Creating Firebase credential...');
+  //     print('🔑 Creating Firebase credential...');
       
-      // Create Firebase credential
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+  //     // Create Firebase credential
+  //     final credential = GoogleAuthProvider.credential(
+  //       accessToken: googleAuth.accessToken,
+  //       idToken: googleAuth.idToken,
+  //     );
 
-      // Sign in to Firebase
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
-      final User? firebaseUser = userCredential.user;
+  //     // Sign in to Firebase
+  //     final UserCredential userCredential = await _auth.signInWithCredential(credential);
+  //     final User? firebaseUser = userCredential.user;
 
-      if (firebaseUser == null) {
-        throw Exception('Firebase authentication failed');
-      }
+  //     if (firebaseUser == null) {
+  //       throw Exception('Firebase authentication failed');
+  //     }
 
-      print('✅ Firebase authentication successful for: ${firebaseUser.email}');
+  //     print('✅ Firebase authentication successful for: ${firebaseUser.email}');
       
-      // Get Firebase ID token
-      final String? firebaseIdToken = await firebaseUser.getIdToken();
+  //     // Get Firebase ID token
+  //     final String? firebaseIdToken = await firebaseUser.getIdToken();
       
-      if (firebaseIdToken == null) {
-        throw Exception('Failed to get Firebase ID token');
-      }
+  //     if (firebaseIdToken == null) {
+  //       throw Exception('Failed to get Firebase ID token');
+  //     }
 
-      print('🔑 Firebase ID token received, sending to backend...');
+  //     print('🔑 Firebase ID token received, sending to backend...');
       
-      // Test connectivity first
-      final workingEndpoint = await ApiService.testConnectivity();
-      if (workingEndpoint == null) {
-        throw Exception('Cannot connect to server. Please check your internet connection.');
-      }
+  //     // Test connectivity first
+  //     final workingEndpoint = await ApiService.testConnectivity();
+  //     if (workingEndpoint == null) {
+  //       throw Exception('Cannot connect to server. Please check your internet connection.');
+  //     }
       
-      final url = Uri.parse('$workingEndpoint/auth/firebase');
+  //     final url = Uri.parse('$workingEndpoint/auth/firebase');
       
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'idToken': firebaseIdToken,
-          'email': firebaseUser.email,
-          'name': firebaseUser.displayName,
-          'photoURL': firebaseUser.photoURL,
-        }),
-      ).timeout(const Duration(seconds: 30));
+  //     final response = await http.post(
+  //       url,
+  //       headers: {'Content-Type': 'application/json'},
+  //       body: jsonEncode({
+  //         'idToken': firebaseIdToken,
+  //         'email': firebaseUser.email,
+  //         'name': firebaseUser.displayName,
+  //         'photoURL': firebaseUser.photoURL,
+  //       }),
+  //     ).timeout(const Duration(seconds: 30));
 
-      print('📡 Firebase Auth API Response:');
-      print('   - Status Code: ${response.statusCode}');
-      print('   - Response Body: ${response.body}');
+  //     print('📡 Firebase Auth API Response:');
+  //     print('   - Status Code: ${response.statusCode}');
+  //     print('   - Response Body: ${response.body}');
 
-      final data = jsonDecode(response.body);
+  //     final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
-        print('✅ Firebase authentication successful');
+  //     if (response.statusCode == 200) {
+  //       print('✅ Firebase authentication successful');
         
-        final user = data['data']['user'];
-        final accessToken = data['data']['accessToken'];
-        final refreshToken = data['data']['refreshToken'];
+  //       final user = data['data']['user'];
+  //       final accessToken = data['data']['accessToken'];
+  //       final refreshToken = data['data']['refreshToken'];
         
-        await _saveUserData(user, accessToken, refreshToken);
+  //       await _saveUserData(user, accessToken, refreshToken);
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const BottomNavBar()),
-        );
-      } else {
-        String errorMessage = data['error'] ?? data['message'] ?? "Firebase Sign-In failed";
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
-      }
-    } catch (e, stackTrace) {
-      print('💥 Exception during Firebase Google Sign-In:');
-      print('   - Error: $e');
-      print('   - Stack trace: $stackTrace');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Firebase Google Sign-In failed: $e")),
-      );
-    } finally {
-      setState(() => _isGoogleLoading = false);
-    }
-  }
+  //       Navigator.pushReplacement(
+  //         context,
+  //         MaterialPageRoute(builder: (context) => const BottomNavBar()),
+  //       );
+  //     } else {
+  //       String errorMessage = data['error'] ?? data['message'] ?? "Firebase Sign-In failed";
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text(errorMessage)),
+  //       );
+  //     }
+  //   } catch (e, stackTrace) {
+  //     print('💥 Exception during Firebase Google Sign-In:');
+  //     print('   - Error: $e');
+  //     print('   - Stack trace: $stackTrace');
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text("Firebase Google Sign-In failed: $e")),
+  //     );
+  //   } finally {
+  //     setState(() => _isGoogleLoading = false);
+  //   }
+  // }
 
   // Future<void> _signInWithApple() async {
   //   // Only show Apple Sign-In on iOS
@@ -443,16 +443,16 @@ class _LoginTabState extends State<LoginTab> {
             ],
           ),
           const SizedBox(height: 20),
-          // Google Sign-In Button
-          _isGoogleLoading
-              ? const CircularProgressIndicator()
-              : _buildSocialButton(
-                  "Continue with Google",
-                  Icons.g_mobiledata,
-                  Colors.red,
-                  _signInWithGoogle,
-                ),
-          const SizedBox(height: 12),
+          // Google Sign-In Button - COMMENTED OUT
+          // _isGoogleLoading
+          //     ? const CircularProgressIndicator()
+          //     : _buildSocialButton(
+          //         "Continue with Google",
+          //         Icons.g_mobiledata,
+          //         Colors.red,
+          //         _signInWithGoogle,
+          //       ),
+          // const SizedBox(height: 12),
           // Apple Sign-In Button (iOS only) - COMMENTED OUT
           // if (Platform.isIOS)
           //   _isAppleLoading
