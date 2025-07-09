@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:archminton/main.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 // import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'ForgotPasswordScreen.dart';
@@ -76,6 +77,7 @@ class _LoginTabState extends State<LoginTab> {
   bool _isGoogleLoading = false;
   // bool _isAppleLoading = false;
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
   );
@@ -201,10 +203,11 @@ class _LoginTabState extends State<LoginTab> {
     setState(() => _isGoogleLoading = true);
 
     try {
-      print('🔐 Starting Google Sign-In process...');
+      print('🔐 Starting Firebase Google Sign-In process...');
       
       // Sign out first to ensure fresh login
       await _googleSignIn.signOut();
+      await _auth.signOut();
       
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       
@@ -221,7 +224,32 @@ class _LoginTabState extends State<LoginTab> {
         throw Exception('Failed to get Google authentication tokens');
       }
 
-      print('🔑 Google tokens received, sending to backend...');
+      print('🔑 Creating Firebase credential...');
+      
+      // Create Firebase credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final User? firebaseUser = userCredential.user;
+
+      if (firebaseUser == null) {
+        throw Exception('Firebase authentication failed');
+      }
+
+      print('✅ Firebase authentication successful for: ${firebaseUser.email}');
+      
+      // Get Firebase ID token
+      final String? firebaseIdToken = await firebaseUser.getIdToken();
+      
+      if (firebaseIdToken == null) {
+        throw Exception('Failed to get Firebase ID token');
+      }
+
+      print('🔑 Firebase ID token received, sending to backend...');
       
       // Test connectivity first
       final workingEndpoint = await ApiService.testConnectivity();
@@ -229,25 +257,27 @@ class _LoginTabState extends State<LoginTab> {
         throw Exception('Cannot connect to server. Please check your internet connection.');
       }
       
-      final url = Uri.parse('$workingEndpoint/auth/google');
+      final url = Uri.parse('$workingEndpoint/auth/firebase');
       
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'idToken': googleAuth.idToken,
-          'accessToken': googleAuth.accessToken,
+          'idToken': firebaseIdToken,
+          'email': firebaseUser.email,
+          'name': firebaseUser.displayName,
+          'photoURL': firebaseUser.photoURL,
         }),
       ).timeout(const Duration(seconds: 30));
 
-      print('📡 Google Auth API Response:');
+      print('📡 Firebase Auth API Response:');
       print('   - Status Code: ${response.statusCode}');
       print('   - Response Body: ${response.body}');
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        print('✅ Google authentication successful');
+        print('✅ Firebase authentication successful');
         
         final user = data['data']['user'];
         final accessToken = data['data']['accessToken'];
@@ -260,17 +290,17 @@ class _LoginTabState extends State<LoginTab> {
           MaterialPageRoute(builder: (context) => const BottomNavBar()),
         );
       } else {
-        String errorMessage = data['error'] ?? data['message'] ?? "Google Sign-In failed";
+        String errorMessage = data['error'] ?? data['message'] ?? "Firebase Sign-In failed";
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );
       }
     } catch (e, stackTrace) {
-      print('💥 Exception during Google Sign-In:');
+      print('💥 Exception during Firebase Google Sign-In:');
       print('   - Error: $e');
       print('   - Stack trace: $stackTrace');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Google Sign-In failed: $e")),
+        SnackBar(content: Text("Firebase Google Sign-In failed: $e")),
       );
     } finally {
       setState(() => _isGoogleLoading = false);

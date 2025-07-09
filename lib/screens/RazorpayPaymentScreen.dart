@@ -250,7 +250,7 @@ class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
     
     // Basic payment without order ID (fallback)
     var options = {
-      'key': 'rzp_test_1DP5mmOlF5G5ag',
+      'key': 'rzp_live_nWO09X889iyAzF',
       'amount': (price * 100).toInt(),
       'currency': 'INR',
       'name': 'Archminton',
