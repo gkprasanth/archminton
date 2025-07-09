@@ -86,7 +86,7 @@ class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
         throw Exception('Invalid amount: $amountInPaise paise');
       }
       
-      const razorpayKey = 'rzp_test_mXvBgpK4G75sfo';
+      const razorpayKey = 'rzp_live_nWO09X889iyAzF';
       
       // Validate Razorpay key format
       if (!razorpayKey.startsWith('rzp_test_') && !razorpayKey.startsWith('rzp_live_')) {

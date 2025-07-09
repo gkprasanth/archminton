@@ -1005,4 +1005,163 @@ class ApiService {
       return null;
     }
   }
+
+  // Banner API methods
+  static Future<List<Map<String, dynamic>>> getBanners({
+    int? page,
+    int? limit,
+    String? search,
+  }) async {
+    try {
+      final requestHeaders = await headers;
+      
+      // Build query parameters
+      final queryParams = <String, String>{};
+      if (page != null) queryParams['page'] = page.toString();
+      if (limit != null) queryParams['limit'] = limit.toString();
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+      
+      final queryString = queryParams.isEmpty 
+          ? '' 
+          : '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
+      
+      final url = '$baseUrl/banners/list$queryString';
+      print('🎨 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Banners Response Status: ${response.statusCode}');
+      print('📄 Banners Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Handle different response formats
+        List<Map<String, dynamic>> banners = [];
+        if (data is Map && data['success'] == true) {
+          if (data['data'] is Map && data['data']['banners'] is List) {
+            banners = List<Map<String, dynamic>>.from(data['data']['banners']);
+          } else if (data['data'] is List) {
+            banners = List<Map<String, dynamic>>.from(data['data']);
+          }
+        } else if (data is List) {
+          banners = List<Map<String, dynamic>>.from(data);
+        }
+        
+        print('🎨 Parsed ${banners.length} banners');
+        return banners;
+      } else {
+        print('❌ Banners API failed with status ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('💥 Banners API Error: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getActiveBanners() async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/banners';
+      print('🎨 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Active Banners Response Status: ${response.statusCode}');
+      print('📄 Active Banners Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Handle different response formats
+        List<Map<String, dynamic>> banners = [];
+        if (data is Map && data['success'] == true) {
+          if (data['data'] is Map && data['data']['banners'] is List) {
+            banners = List<Map<String, dynamic>>.from(data['data']['banners']);
+          } else if (data['data'] is List) {
+            banners = List<Map<String, dynamic>>.from(data['data']);
+          }
+        } else if (data is List) {
+          banners = List<Map<String, dynamic>>.from(data);
+        }
+        
+        print('🎨 Parsed ${banners.length} active banners');
+        return banners;
+      } else {
+        print('❌ Active Banners API failed with status ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('💥 Active Banners API Error: $e');
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getBannerById(int bannerId) async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/banners/$bannerId';
+      print('🎨 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Banner By ID Response Status: ${response.statusCode}');
+      print('📄 Banner By ID Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data is Map && data['success'] == true && data['data'] is Map) {
+          final banner = data['data']['banner'] ?? data['data'];
+          print('🎨 Successfully got banner with ID $bannerId');
+          return Map<String, dynamic>.from(banner);
+        } else {
+          print('❌ Invalid banner response format');
+          return null;
+        }
+      } else {
+        print('❌ Banner By ID API failed with status ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('💥 Banner By ID API Error: $e');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getBannerStats() async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/banners/stats';
+      print('🎨 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Banner Stats Response Status: ${response.statusCode}');
+      print('📄 Banner Stats Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data is Map && data['success'] == true && data['data'] is Map) {
+          print('🎨 Successfully got banner stats');
+          return Map<String, dynamic>.from(data['data']);
+        } else {
+          print('❌ Invalid banner stats response format');
+          return null;
+        }
+      } else {
+        print('❌ Banner Stats API failed with status ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('💥 Banner Stats API Error: $e');
+      return null;
+    }
+  }
 } 
