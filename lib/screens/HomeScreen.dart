@@ -158,28 +158,30 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (accessToken == null) {
-        print('❌ No access token found in SharedPreferences');
-        if (!mounted) return;
-        setState(() {
-          hasError = true;
-          isLoading = false;
-          errorMessage = 'Access token not found';
-        });
-        return;
+        print('⚠️ No access token found - proceeding in guest mode');
+        // Don't return early, continue with guest access
       }
 
       final url = '$baseUrl/venues';
       print('🌐 Making API request:');
       print('   - URL: $url');
-      print('   - Headers: Authorization: Bearer ${accessToken.substring(0, 20)}...');
+      
+      // Create headers with optional authorization
+      Map<String, String> headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (accessToken != null) {
+        headers['Authorization'] = 'Bearer $accessToken';
+        print('   - Headers: Authorization: Bearer ${accessToken.substring(0, 20)}...');
+      } else {
+        print('   - Headers: No authorization (guest mode)');
+      }
       print('   - Headers: Content-Type: application/json');
 
       final response = await http.get(
         Uri.parse(url),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
       );
 
       print('📡 API Response received:');
@@ -414,7 +416,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<String?> _getUserName() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('name');
+    final name = prefs.getString('name');
+    final accessToken = prefs.getString('accessToken');
+    
+    // If no access token, user is not logged in
+    if (accessToken == null) {
+      return "Guest";
+    }
+    
+    return name ?? "User";
   }
 
   @override
@@ -548,7 +558,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "Welcome, $userName! 👋",
+                                        userName == "Guest" 
+                                          ? "Welcome! 👋" 
+                                          : "Welcome, $userName! 👋",
                                         style: GoogleFonts.poppins(
                                           fontSize: 22,
                                           fontWeight: FontWeight.w600,
@@ -557,7 +569,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        "Ready to play a Sport?",
+                                        userName == "Guest"
+                                          ? "Browse venues and sign in to book!"
+                                          : "Ready to play a Sport?",
                                         style: GoogleFonts.poppins(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w400,

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:archminton/screens/BookingScreen.dart';
+import 'package:archminton/screens/LoginScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class VenueScreen extends StatefulWidget {
   final Map<String, dynamic> venue;
@@ -531,13 +533,23 @@ class _VenueScreenState extends State<VenueScreen> {
 
   Widget _buildBookButton(ColorScheme colors, String venueId) {
     return ElevatedButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => BookingScreen(venueId: venueId),
-          ),
-        );
+      onPressed: () async {
+        // Check if user is logged in before allowing booking
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('accessToken');
+        
+        if (token == null || token.isEmpty) {
+          // User is not logged in, show login dialog
+          _showLoginRequiredDialog();
+        } else {
+          // User is logged in, proceed to booking
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BookingScreen(venueId: venueId),
+            ),
+          );
+        }
       },
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14), // Reduced padding
@@ -562,6 +574,69 @@ class _VenueScreenState extends State<VenueScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showLoginRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.login, color: Colors.green, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Sign In Required',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'You need to sign in to book a court. Would you like to sign in now?',
+            style: GoogleFonts.poppins(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Later',
+                style: GoogleFonts.poppins(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LoginScreen(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Sign In',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

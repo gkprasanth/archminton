@@ -19,12 +19,6 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  Future<bool> _isLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken');
-    return token != null && token.isNotEmpty;
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -34,20 +28,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: FutureBuilder<bool>(
-        future: _isLoggedIn(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          } else {
-            return snapshot.data == true
-                ? const BottomNavBar()
-                : const LoginScreen();
-          }
-        },
-      ),
+      home: const BottomNavBar(), // Always start with main app (guest mode allowed)
     );
   }
 }
@@ -67,7 +48,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
     const Bookscreen(),
     LearnScreen(),
     const ProfileScreen(),
-  ];
+];
 
   @override
   Widget build(BuildContext context) {

@@ -1164,4 +1164,137 @@ class ApiService {
       return null;
     }
   }
-} 
+
+  // Sports Interest API methods
+  static Future<Map<String, dynamic>> recordSportInterest(String sportType) async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/users/sports-interests';
+      print('🌐 API Call: POST $url');
+      print('🔑 Headers: $requestHeaders');
+      print('📝 Body: {"sportType": "$sportType"}');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: requestHeaders,
+        body: jsonEncode({'sportType': sportType}),
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+      
+      return {
+        'success': response.statusCode == 201,
+        'data': jsonDecode(response.body),
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print('💥 Record Sport Interest API Error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getSportsInterests() async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/users/sports-interests';
+      print('🌐 API Call: GET $url');
+      print('🔑 Headers: $requestHeaders');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: requestHeaders,
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': data['data'] ?? data,
+          'statusCode': response.statusCode,
+        };
+      } else {
+        return {
+          'success': false,
+          'data': jsonDecode(response.body),
+          'statusCode': response.statusCode,
+        };
+      }
+    } catch (e) {
+      print('💥 Get Sports Interests API Error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> removeSportInterest(String sportType) async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/users/sports-interests/$sportType';
+      print('🌐 API Call: DELETE $url');
+      print('🔑 Headers: $requestHeaders');
+      
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: requestHeaders,
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+      
+      return {
+        'success': response.statusCode == 200,
+        'data': jsonDecode(response.body),
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print('💥 Remove Sport Interest API Error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
+
+  // Delete user account
+  static Future<Map<String, dynamic>> deleteUserAccount() async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/users/account';
+      print('🌐 API Call: DELETE $url');
+      print('🔑 Headers: $requestHeaders');
+      
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: requestHeaders,
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+      
+      return {
+        'success': response.statusCode == 200,
+        'data': jsonDecode(response.body),
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print('💥 Delete User Account API Error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
+}
