@@ -135,6 +135,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Set context for ApiService to enable automatic logout
+    ApiService.setContext(context);
+  }
+
+  @override
   void dispose() {
     super.dispose();
   }

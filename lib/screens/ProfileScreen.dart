@@ -50,6 +50,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Set context for ApiService to enable automatic logout
+    ApiService.setContext(context);
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();

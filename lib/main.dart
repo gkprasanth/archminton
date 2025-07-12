@@ -3,6 +3,7 @@ import 'package:archminton/screens/HomeScreen.dart';
 import 'package:archminton/screens/LearnScreen.dart';
 import 'package:archminton/screens/LoginScreen.dart';
 import 'package:archminton/screens/ProfileScreen.dart';
+import 'package:archminton/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -52,6 +53,9 @@ class _BottomNavBarState extends State<BottomNavBar> {
 
   @override
   Widget build(BuildContext context) {
+    // Set the context for ApiService to enable automatic logout
+    ApiService.setContext(context);
+    
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
