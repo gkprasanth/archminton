@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'profileoptions/MyBookings.dart';
 
@@ -22,6 +23,8 @@ class RazorpayPaymentScreen extends StatefulWidget {
 class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
   late Razorpay _razorpay;
   bool _isProcessing = false;
+  String _userPhone = '';
+  String _userEmail = '';
 
   @override
   void initState() {
@@ -31,10 +34,38 @@ class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
     
-    // Start payment process immediately
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startPayment();
+    // Set context for ApiService to enable automatic logout
+    ApiService.setContext(context);
+    
+    // Load user data first, then start payment
+    _loadUserData().then((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _startPayment();
+      });
     });
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userPhone = prefs.getString('phone') ?? '9999999999';
+      _userEmail = prefs.getString('email') ?? 'user@example.com';
+    });
+    
+    // Ensure phone number is in proper format (remove any formatting)
+    _userPhone = _userPhone.replaceAll(RegExp(r'[^\d+]'), '');
+    if (_userPhone.isEmpty) {
+      _userPhone = '9999999999';
+    }
+    
+    // Ensure email has a valid format
+    if (_userEmail.isEmpty || !_userEmail.contains('@')) {
+      _userEmail = 'user@example.com';
+    }
+    
+    print('📱 User data loaded for payment:');
+    print('   - Phone: $_userPhone');
+    print('   - Email: $_userEmail');
   }
 
   @override
@@ -86,7 +117,7 @@ class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
         throw Exception('Invalid amount: $amountInPaise paise');
       }
       
-      const razorpayKey = 'rzp_test_mXvBgpK4G75sfo';
+      const razorpayKey = 'rzp_live_nWO09X889iyAzF';
       
       // Validate Razorpay key format
       if (!razorpayKey.startsWith('rzp_test_') && !razorpayKey.startsWith('rzp_live_')) {
@@ -101,8 +132,8 @@ class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
         'order_id': orderId.toString(),
         'description': 'Court Booking - ${bookingData['courtName'] ?? 'Court'}',
         'prefill': <String, String>{
-          'contact': '9999999999',
-          'email': 'user@example.com'
+          'contact': _userPhone,
+          'email': _userEmail
         },
         'theme': <String, String>{
           'color': '#FF6B35'
@@ -250,14 +281,14 @@ class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
     
     // Basic payment without order ID (fallback)
     var options = {
-      'key': 'rzp_test_1DP5mmOlF5G5ag',
+      'key': 'rzp_live_nWO09X889iyAzF',
       'amount': (price * 100).toInt(),
       'currency': 'INR',
       'name': 'Archminton',
       'description': 'Court Booking - ${bookingData['courtName']}',
       'prefill': {
-        'contact': '9999999999',
-        'email': 'user@example.com'
+        'contact': _userPhone,
+        'email': _userEmail
       },
       'theme': {
         'color': '#FF6B35'

@@ -1,10 +1,75 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 import '../constants/constants.dart';
+import '../main.dart';
 
 class ApiService {
   static final String baseUrl = AppConstants.baseUrl;
+  static BuildContext? _currentContext;
+  
+  // Set the current context for navigation
+  static void setContext(BuildContext context) {
+    _currentContext = context;
+  }
+  
+  // Logout utility function
+  static Future<void> _performLogout() async {
+    print('🚪 Token expired (401) - performing automatic logout...');
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Clear all user-related data from SharedPreferences
+      await prefs.remove('accessToken');
+      await prefs.remove('refreshToken');
+      await prefs.remove('userId');
+      await prefs.remove('email');
+      await prefs.remove('name');
+      await prefs.remove('phone');
+      await prefs.remove('gender');
+      await prefs.remove('user');
+      await prefs.remove('address');
+      await prefs.remove('society');
+      await prefs.remove('profileImagePath');
+      
+      print('🚪 User data cleared - redirecting to login...');
+      
+      // Navigate to login screen if context is available
+      if (_currentContext != null && _currentContext!.mounted) {
+        Navigator.of(_currentContext!).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const MyApp()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      print('❌ Error during automatic logout: $e');
+    }
+  }
+  
+  // Centralized HTTP request handler that checks for 401 errors
+  static Future<http.Response> _makeAuthenticatedRequest(
+    Future<http.Response> Function() request,
+  ) async {
+    try {
+      final response = await request();
+      
+      // Check for 401 Unauthorized
+      if (response.statusCode == 401) {
+        print('🔐 Received 401 Unauthorized - token expired');
+        await _performLogout();
+        
+        // Return the original response so the calling code can handle it
+        return response;
+      }
+      
+      return response;
+    } catch (e) {
+      // Re-throw the exception to maintain existing error handling
+      rethrow;
+    }
+  }
 
   // Forgot password
   static Future<Map<String, dynamic>> forgotPassword(String email) async {
@@ -55,31 +120,31 @@ class ApiService {
     }
   }
 
-  // Google Sign-In
-  static Future<Map<String, dynamic>> googleSignIn(String idToken, {String? accessToken}) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/google'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'idToken': idToken,
-          if (accessToken != null) 'accessToken': accessToken,
-        }),
-      ).timeout(const Duration(seconds: 30));
+  // Google Sign-In - COMMENTED OUT
+  // static Future<Map<String, dynamic>> googleSignIn(String idToken, {String? accessToken}) async {
+  //   try {
+  //     final response = await http.post(
+  //       Uri.parse('$baseUrl/auth/google'),
+  //       headers: {'Content-Type': 'application/json'},
+  //       body: jsonEncode({
+  //         'idToken': idToken,
+  //         if (accessToken != null) 'accessToken': accessToken,
+  //       }),
+  //     ).timeout(const Duration(seconds: 30));
 
-      return {
-        'success': response.statusCode == 200,
-        'data': jsonDecode(response.body),
-        'statusCode': response.statusCode,
-      };
-    } catch (e) {
-      return {
-        'success': false,
-        'error': e.toString(),
-        'statusCode': 0,
-      };
-    }
-  }
+  //     return {
+  //       'success': response.statusCode == 200,
+  //       'data': jsonDecode(response.body),
+  //       'statusCode': response.statusCode,
+  //     };
+  //   } catch (e) {
+  //     return {
+  //       'success': false,
+  //       'error': e.toString(),
+  //       'statusCode': 0,
+  //     };
+  //   }
+  // }
 
   // // Apple Sign-In
   // static Future<Map<String, dynamic>> appleSignIn({
@@ -181,10 +246,10 @@ class ApiService {
       print('🌐 API Call: GET $url');
       print('🔑 Headers: $requestHeaders');
       
-      final response = await http.get(
+      final response = await _makeAuthenticatedRequest(() => http.get(
         Uri.parse(url),
         headers: requestHeaders,
-      );
+      ));
       
       print('📡 Response Status: ${response.statusCode}');
       print('📄 Response Body: ${response.body}');
@@ -204,33 +269,14 @@ class ApiService {
         
         print('🏟️ Parsed ${courts.length} courts');
         return courts;
+      } else if (response.statusCode == 401) {
+        // Token expired, user already logged out
+        return [];
       } else {
-        // If regular endpoint fails, try admin endpoint as fallback (for admin users)
-        print('🔄 Regular endpoint failed, trying admin endpoint as fallback...');
-        final adminUrl = '$baseUrl/admin/courts?venueId=$venueId';
-        final adminResponse = await http.get(
-          Uri.parse(adminUrl),
-          headers: requestHeaders,
-        );
-        
-        if (adminResponse.statusCode == 200) {
-          final adminData = json.decode(adminResponse.body);
-          List<Map<String, dynamic>> adminCourts = [];
-          if (adminData is List) {
-            adminCourts = List<Map<String, dynamic>>.from(adminData);
-          } else if (adminData is Map && adminData['data'] is List) {
-            adminCourts = List<Map<String, dynamic>>.from(adminData['data']);
-          } else if (adminData is Map && adminData['courts'] is List) {
-            adminCourts = List<Map<String, dynamic>>.from(adminData['courts']);
-          }
-          print('🏟️ Parsed ${adminCourts.length} courts from admin endpoint');
-          return adminCourts;
-        }
-        
         throw Exception('Failed to load courts: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('💥 API Error: $e');
+      print('💥 Courts API Error: $e');
       throw Exception('Error loading courts: $e');
     }
   }
@@ -242,10 +288,10 @@ class ApiService {
       final url = '$baseUrl/courts/$courtId/timeslots$queryParams';
       print('🌐 API Call: GET $url');
       
-      final response = await http.get(
+      final response = await _makeAuthenticatedRequest(() => http.get(
         Uri.parse(url),
         headers: requestHeaders,
-      );
+      ));
       
       print('📡 Time Slots Response Status: ${response.statusCode}');
       print('📄 Time Slots Response Body: ${response.body}');
@@ -265,29 +311,11 @@ class ApiService {
         
         print('🕐 Parsed ${timeSlots.length} time slots for court $courtId');
         return timeSlots;
+      } else if (response.statusCode == 401) {
+        // Token expired, user already logged out
+        return [];
       } else {
-        // Try alternative admin endpoint
-        print('🔄 Trying alternative admin endpoint...');
-        final altUrl = '$baseUrl/admin/courts/$courtId/timeslots$queryParams';
-        final altResponse = await http.get(
-          Uri.parse(altUrl),
-          headers: requestHeaders,
-        );
-        
-        if (altResponse.statusCode == 200) {
-          final altData = json.decode(altResponse.body);
-          List<Map<String, dynamic>> altTimeSlots = [];
-          if (altData is List) {
-            altTimeSlots = List<Map<String, dynamic>>.from(altData);
-          } else if (altData is Map && altData['data'] is List) {
-            altTimeSlots = List<Map<String, dynamic>>.from(altData['data']);
-          } else if (altData is Map && altData['timeSlots'] is List) {
-            altTimeSlots = List<Map<String, dynamic>>.from(altData['timeSlots']);
-          }
-          return altTimeSlots;
-        }
-        
-        print('⚠️ Both endpoints failed, returning empty time slots for court $courtId');
+        print('⚠️ Failed to load time slots, returning empty array for court $courtId');
         return [];
       }
     } catch (e) {
@@ -338,11 +366,11 @@ class ApiService {
       print('🌐 API Call: POST $baseUrl/payments/create-order');
       print('📦 Request Body: ${json.encode(body)}');
       
-      final response = await http.post(
+      final response = await _makeAuthenticatedRequest(() => http.post(
         Uri.parse('$baseUrl/payments/create-order'),
         headers: requestHeaders,
         body: json.encode(body),
-      );
+      ));
       
       print('📡 Order Creation Response Status: ${response.statusCode}');
       print('📄 Order Creation Response Body: ${response.body}');
@@ -392,11 +420,11 @@ class ApiService {
       print('🌐 API Call: POST $baseUrl/payments/verify');
       print('📦 Request Body: ${json.encode(body)}');
       
-      final response = await http.post(
+      final response = await _makeAuthenticatedRequest(() => http.post(
         Uri.parse('$baseUrl/payments/verify'),
         headers: requestHeaders,
         body: json.encode(body),
-      );
+      ));
       
       print('📡 Payment Verification Response Status: ${response.statusCode}');
       print('📄 Payment Verification Response Body: ${response.body}');
@@ -555,11 +583,11 @@ class ApiService {
       print('🔑 Request Headers: $requestHeaders');
       print('📦 Request Body: ${json.encode(body)}');
       
-      final response = await http.post(
+      final response = await _makeAuthenticatedRequest(() => http.post(
         Uri.parse('$baseUrl/bookings'),
         headers: requestHeaders,
         body: json.encode(body),
-      );
+      ));
       
       print('📡 Booking Response Status: ${response.statusCode}');
       print('📄 Booking Response Body: ${response.body}');
@@ -570,6 +598,12 @@ class ApiService {
           'success': true,
           'data': responseData,
           'message': 'Booking created successfully'
+        };
+      } else if (response.statusCode == 401) {
+        // Token expired, user already logged out
+        return {
+          'success': false,
+          'message': 'Authentication required - please log in again'
         };
       } else {
         try {
@@ -597,10 +631,10 @@ class ApiService {
       print('🌐 API Call: GET $url');
       print('🔑 Request Headers: $requestHeaders');
       
-      final response = await http.get(
+      final response = await _makeAuthenticatedRequest(() => http.get(
         Uri.parse(url),
         headers: requestHeaders,
-      );
+      ));
       
       print('📡 User Bookings Response Status: ${response.statusCode}');
       print('📄 User Bookings Response Body: ${response.body}');
@@ -610,6 +644,9 @@ class ApiService {
         final decodedResponse = json.decode(response.body);
         print('✅ Successfully decoded response: ${decodedResponse.runtimeType}');
         return decodedResponse;
+      } else if (response.statusCode == 401) {
+        // Token expired, user already logged out
+        return {'success': false, 'message': 'Authentication required'};
       } else {
         print('❌ API Error - Status: ${response.statusCode}');
         print('❌ Error Body: ${response.body}');
@@ -1005,4 +1042,296 @@ class ApiService {
       return null;
     }
   }
-} 
+
+  // Banner API methods
+  static Future<List<Map<String, dynamic>>> getBanners({
+    int? page,
+    int? limit,
+    String? search,
+  }) async {
+    try {
+      final requestHeaders = await headers;
+      
+      // Build query parameters
+      final queryParams = <String, String>{};
+      if (page != null) queryParams['page'] = page.toString();
+      if (limit != null) queryParams['limit'] = limit.toString();
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+      
+      final queryString = queryParams.isEmpty 
+          ? '' 
+          : '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
+      
+      final url = '$baseUrl/banners/list$queryString';
+      print('🎨 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Banners Response Status: ${response.statusCode}');
+      print('📄 Banners Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Handle different response formats
+        List<Map<String, dynamic>> banners = [];
+        if (data is Map && data['success'] == true) {
+          if (data['data'] is Map && data['data']['banners'] is List) {
+            banners = List<Map<String, dynamic>>.from(data['data']['banners']);
+          } else if (data['data'] is List) {
+            banners = List<Map<String, dynamic>>.from(data['data']);
+          }
+        } else if (data is List) {
+          banners = List<Map<String, dynamic>>.from(data);
+        }
+        
+        print('🎨 Parsed ${banners.length} banners');
+        return banners;
+      } else {
+        print('❌ Banners API failed with status ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('💥 Banners API Error: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getActiveBanners() async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/banners';
+      print('🎨 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Active Banners Response Status: ${response.statusCode}');
+      print('📄 Active Banners Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Handle different response formats
+        List<Map<String, dynamic>> banners = [];
+        if (data is Map && data['success'] == true) {
+          if (data['data'] is Map && data['data']['banners'] is List) {
+            banners = List<Map<String, dynamic>>.from(data['data']['banners']);
+          } else if (data['data'] is List) {
+            banners = List<Map<String, dynamic>>.from(data['data']);
+          }
+        } else if (data is List) {
+          banners = List<Map<String, dynamic>>.from(data);
+        }
+        
+        print('🎨 Parsed ${banners.length} active banners');
+        return banners;
+      } else {
+        print('❌ Active Banners API failed with status ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('💥 Active Banners API Error: $e');
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getBannerById(int bannerId) async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/banners/$bannerId';
+      print('🎨 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Banner By ID Response Status: ${response.statusCode}');
+      print('📄 Banner By ID Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data is Map && data['success'] == true && data['data'] is Map) {
+          final banner = data['data']['banner'] ?? data['data'];
+          print('🎨 Successfully got banner with ID $bannerId');
+          return Map<String, dynamic>.from(banner);
+        } else {
+          print('❌ Invalid banner response format');
+          return null;
+        }
+      } else {
+        print('❌ Banner By ID API failed with status ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('💥 Banner By ID API Error: $e');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getBannerStats() async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/banners/stats';
+      print('🎨 API Call: GET $url');
+      
+      final response = await http.get(Uri.parse(url), headers: requestHeaders)
+          .timeout(const Duration(seconds: 30));
+      
+      print('📡 Banner Stats Response Status: ${response.statusCode}');
+      print('📄 Banner Stats Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data is Map && data['success'] == true && data['data'] is Map) {
+          print('🎨 Successfully got banner stats');
+          return Map<String, dynamic>.from(data['data']);
+        } else {
+          print('❌ Invalid banner stats response format');
+          return null;
+        }
+      } else {
+        print('❌ Banner Stats API failed with status ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('💥 Banner Stats API Error: $e');
+      return null;
+    }
+  }
+
+  // Sports Interest API methods
+  static Future<Map<String, dynamic>> recordSportInterest(String sportType) async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/users/sports-interests';
+      print('🌐 API Call: POST $url');
+      print('🔑 Headers: $requestHeaders');
+      print('📝 Body: {"sportType": "$sportType"}');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: requestHeaders,
+        body: jsonEncode({'sportType': sportType}),
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+      
+      return {
+        'success': response.statusCode == 201,
+        'data': jsonDecode(response.body),
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print('💥 Record Sport Interest API Error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getSportsInterests() async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/users/sports-interests';
+      print('🌐 API Call: GET $url');
+      print('🔑 Headers: $requestHeaders');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: requestHeaders,
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': data['data'] ?? data,
+          'statusCode': response.statusCode,
+        };
+      } else {
+        return {
+          'success': false,
+          'data': jsonDecode(response.body),
+          'statusCode': response.statusCode,
+        };
+      }
+    } catch (e) {
+      print('💥 Get Sports Interests API Error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> removeSportInterest(String sportType) async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/users/sports-interests/$sportType';
+      print('🌐 API Call: DELETE $url');
+      print('🔑 Headers: $requestHeaders');
+      
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: requestHeaders,
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+      
+      return {
+        'success': response.statusCode == 200,
+        'data': jsonDecode(response.body),
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print('💥 Remove Sport Interest API Error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
+
+  // Delete user account
+  static Future<Map<String, dynamic>> deleteUserAccount() async {
+    try {
+      final requestHeaders = await headers;
+      final url = '$baseUrl/users/account';
+      print('🌐 API Call: DELETE $url');
+      print('🔑 Headers: $requestHeaders');
+      
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: requestHeaders,
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Response Status: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+      
+      return {
+        'success': response.statusCode == 200,
+        'data': jsonDecode(response.body),
+        'statusCode': response.statusCode,
+      };
+    } catch (e) {
+      print('💥 Delete User Account API Error: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'statusCode': 0,
+      };
+    }
+  }
+}

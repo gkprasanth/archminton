@@ -2,6 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+import 'LoginScreen.dart';
 
 // Placeholder for BottomNavBar widget (replace with your actual implementation)
 
@@ -47,6 +49,31 @@ class _LearnScreenState extends State<LearnScreen> {
 
   Future<void> _loadInterestedSports() async {
     final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('accessToken');
+    
+    if (accessToken != null) {
+      // User is authenticated, load from database
+      try {
+        final result = await ApiService.getSportsInterests();
+        if (result['success']) {
+          final List<dynamic> interests = result['data'] ?? [];
+          setState(() {
+            interestedSports = interests
+                .map((interest) => interest['sportType'] as String)
+                .toSet();
+          });
+          
+          // Also save to local storage as backup
+          await prefs.setStringList('interested_sports', interestedSports.toList());
+          return;
+        }
+      } catch (e) {
+        print('Error loading sports interests from database: $e');
+        // Fall back to local storage
+      }
+    }
+    
+    // Fall back to local storage (for guest users or if API fails)
     final interested = prefs.getStringList('interested_sports') ?? [];
     setState(() {
       interestedSports = interested.toSet();
@@ -284,12 +311,188 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   Future<void> _handleJoinTraining(BuildContext context, String sport, Color color) async {
+    // Check if user is authenticated
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('accessToken');
+    
+    if (accessToken == null) {
+      // User is not authenticated, show login dialog
+      _showLoginRequiredDialog(context, sport);
+      return;
+    }
+
+    // User is authenticated, proceed with interest recording
     if (interestedSports.contains(sport)) {
       // User has already shown interest, show regular snackbar
       _showSelectionSnackbar(context, sport, color);
     } else {
-      // First time showing interest, show popup dialog
-      await _showInterestDialog(context, sport, color);
+      // First time showing interest, record in database and show popup dialog
+      await _recordInterestInDatabase(context, sport, color);
+    }
+  }
+
+  void _showLoginRequiredDialog(BuildContext context, String sport) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.login,
+                color: Colors.blue[700],
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Sign In Required',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[800],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'To record your interest in $sport training, please sign in to your account.',
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'This will help us contact you with updates about training sessions and availability.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Sign In',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Navigate to login screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LoginScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _recordInterestInDatabase(BuildContext context, String sport, Color color) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
+
+      // Call API to record interest
+      final result = await ApiService.recordSportInterest(sport);
+      
+      // Hide loading indicator
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (result['success']) {
+        // Mark this sport as interested locally
+        setState(() {
+          interestedSports.add(sport);
+        });
+        await _saveInterestedSports();
+        
+        // Show success dialog
+        if (context.mounted) {
+          await _showInterestDialog(context, sport, color);
+        }
+      } else {
+        // Show error message
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red,
+              content: Text(
+                'Failed to record interest. Please try again.',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Hide loading indicator if still showing
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Text(
+              'Error recording interest: $e',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 

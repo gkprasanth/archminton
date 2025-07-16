@@ -3,21 +3,22 @@ import 'package:archminton/screens/HomeScreen.dart';
 import 'package:archminton/screens/LearnScreen.dart';
 import 'package:archminton/screens/LoginScreen.dart';
 import 'package:archminton/screens/ProfileScreen.dart';
+import 'package:archminton/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  Future<bool> _isLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken');
-    return token != null && token.isNotEmpty;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,20 +29,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: FutureBuilder<bool>(
-        future: _isLoggedIn(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          } else {
-            return snapshot.data == true
-                ? const BottomNavBar()
-                : const LoginScreen();
-          }
-        },
-      ),
+      home: const BottomNavBar(), // Always start with main app (guest mode allowed)
     );
   }
 }
@@ -61,10 +49,13 @@ class _BottomNavBarState extends State<BottomNavBar> {
     const Bookscreen(),
     LearnScreen(),
     const ProfileScreen(),
-  ];
+];
 
   @override
   Widget build(BuildContext context) {
+    // Set the context for ApiService to enable automatic logout
+    ApiService.setContext(context);
+    
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,

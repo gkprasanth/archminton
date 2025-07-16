@@ -36,21 +36,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<dynamic> userMemberships = [];
   List<dynamic> courseEnrollments = [];
-  List<dynamic> bannerImages = [];
+  List<dynamic> banners = [];
   bool isLoading = true;
   bool isLoadingMemberships = true;
   bool isLoadingCourses = true;
   bool isLoadingBanners = true;
   bool hasError = false;
   String errorMessage = "";
+  int currentBannerIndex = 0;
   
 
 
   // Stock banner image - using single consistent image to prevent carousel crashes
   final String stockBannerImage = 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'; // Basketball court
   
-  // Create multiple slides with the same image for carousel effect
-  List<String> get stockBannerImages => List.generate(3, (index) => stockBannerImage);
+  // Create fallback banner data for when API fails
+  List<Map<String, dynamic>> get fallbackBanners => [
+    {
+      'id': 1,
+      'title': 'Welcome to Archminton',
+      'description': 'Book courts, play with friends, and improve your game!',
+      'imageUrl': stockBannerImage,
+      'isActive': true,
+      'order': 1,
+    }
+  ];
 
   final Map<String, dynamic> dummyVenue = {
     "id": 1,
@@ -125,6 +135,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Set context for ApiService to enable automatic logout
+    ApiService.setContext(context);
+  }
+
+  @override
   void dispose() {
     super.dispose();
   }
@@ -148,28 +165,30 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (accessToken == null) {
-        print('❌ No access token found in SharedPreferences');
-        if (!mounted) return;
-        setState(() {
-          hasError = true;
-          isLoading = false;
-          errorMessage = 'Access token not found';
-        });
-        return;
+        print('⚠️ No access token found - proceeding in guest mode');
+        // Don't return early, continue with guest access
       }
 
       final url = '$baseUrl/venues';
       print('🌐 Making API request:');
       print('   - URL: $url');
-      print('   - Headers: Authorization: Bearer ${accessToken.substring(0, 20)}...');
+      
+      // Create headers with optional authorization
+      Map<String, String> headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (accessToken != null) {
+        headers['Authorization'] = 'Bearer $accessToken';
+        print('   - Headers: Authorization: Bearer ${accessToken.substring(0, 20)}...');
+      } else {
+        print('   - Headers: No authorization (guest mode)');
+      }
       print('   - Headers: Content-Type: application/json');
 
       final response = await http.get(
         Uri.parse(url),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
       );
 
       print('📡 API Response received:');
@@ -360,79 +379,59 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> fetchBannerImages() async {
-    print('🚀 Starting fetchBannerImages...');
+    print('🎨 Starting fetchBannerImages...');
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final accessToken = prefs.getString('accessToken');
+      setState(() {
+        isLoadingBanners = true;
+      });
       
-      if (accessToken == null) {
-        print('❌ No access token found for banner images');
-        print('   - Using stock images as fallback');
-        if (!mounted) return;
+      // Fetch active banners from the API using ApiService
+      final fetchedBanners = await ApiService.getActiveBanners();
+      
+      if (!mounted) return;
+      
+      if (fetchedBanners.isNotEmpty) {
+        print('🎨 Successfully fetched ${fetchedBanners.length} banners from API');
         setState(() {
-          bannerImages = stockBannerImages;
+          banners = fetchedBanners;
           isLoadingBanners = false;
         });
-        return;
-      }
-
-      final url = '$baseUrl/banners';
-      print('🌐 Making banner API request to: $url');
-
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      print('📡 Banner API Response:');
-      print('   - Status Code: ${response.statusCode}');
-      print('   - Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print('✅ Successfully parsed banner JSON response');
-        
-        final apiImages = data is List ? data : (data['data'] ?? []);
-        
-        if (!mounted) return;
-        setState(() {
-          // Use API images if available, otherwise use stock images
-          bannerImages = apiImages.isNotEmpty ? apiImages : stockBannerImages;
-          isLoadingBanners = false;
-        });
-        print('✅ Banner images state updated successfully');
       } else {
-        print('❌ Banner API request failed with status ${response.statusCode}');
-        print('   - Using stock images as fallback');
-        if (!mounted) return;
+        print('🎨 No banners returned from API, using fallback');
         setState(() {
-          bannerImages = stockBannerImages;
+          banners = fallbackBanners;
           isLoadingBanners = false;
         });
       }
+      
     } catch (e, stackTrace) {
       print('💥 Exception in fetchBannerImages:');
       print('   - Error: $e');
       print('   - Stack trace: $stackTrace');
-      print('   - Using stock images as fallback');
+      print('   - Using fallback banners');
       
       if (!mounted) return;
-              setState(() {
-          bannerImages = stockBannerImages;
-          isLoadingBanners = false;
-        });
-            }
+      setState(() {
+        banners = fallbackBanners;
+        isLoadingBanners = false;
+      });
+    }
   }
 
 
 
   Future<String?> _getUserName() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('name');
+    final name = prefs.getString('name');
+    final accessToken = prefs.getString('accessToken');
+    
+    // If no access token, user is not logged in
+    if (accessToken == null) {
+      return "Guest";
+    }
+    
+    return name ?? "User";
   }
 
   @override
@@ -566,7 +565,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "Welcome, $userName! 👋",
+                                        userName == "Guest" 
+                                          ? "Welcome! 👋" 
+                                          : "Welcome, $userName! 👋",
                                         style: GoogleFonts.poppins(
                                           fontSize: 22,
                                           fontWeight: FontWeight.w600,
@@ -575,7 +576,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        "Ready to play a Sport?",
+                                        userName == "Guest"
+                                          ? "Browse venues and sign in to book!"
+                                          : "Ready to play a Sport?",
                                         style: GoogleFonts.poppins(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w400,
@@ -749,42 +752,110 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-      Widget _buildBannerCarousel() {
-    return Container(
-      height: 200,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+  Widget _buildBannerCarousel() {
+    if (isLoadingBanners) {
+      return Container(
+        height: 200,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (banners.isEmpty) {
+      return _buildBannerPlaceholder();
+    }
+
+    return Column(
+      children: [
+        Container(
+          height: 200,
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: banners.length == 1
+              ? _buildSingleBanner(banners[0])
+              : PageView.builder(
+                  itemCount: banners.length,
+                  onPageChanged: (index) {
+                    if (mounted) {
+                      setState(() {
+                        currentBannerIndex = index;
+                      });
+                    }
+                  },
+                  itemBuilder: (context, index) {
+                    return _buildSingleBanner(banners[index]);
+                  },
+                ),
+        ),
+        if (banners.length > 1) ...[
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: banners.asMap().entries.map((entry) {
+              return Container(
+                width: currentBannerIndex == entry.key ? 20 : 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: currentBannerIndex == entry.key
+                      ? Colors.green
+                      : Colors.grey.withOpacity(0.5),
+                ),
+              );
+            }).toList(),
           ),
         ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Image.network(
-          stockBannerImage,
-          width: double.infinity,
-          height: 200,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
-          },
-          errorBuilder: (_, __, ___) => _buildBannerPlaceholder(),
-        ),
+      ],
+    );
+  }
+
+  Widget _buildSingleBanner(Map<String, dynamic> banner) {
+    final imageUrl = banner['imageUrl'] ?? stockBannerImage;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Image.network(
+        imageUrl,
+        width: double.infinity,
+        height: 200,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        },
+        errorBuilder: (_, __, ___) => _buildBannerPlaceholder(),
       ),
     );
   }

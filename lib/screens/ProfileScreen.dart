@@ -1,4 +1,5 @@
 import 'package:archminton/main.dart';
+import 'package:archminton/screens/LoginScreen.dart';
 import 'package:archminton/screens/profileoptions/FAQ.dart';
 import 'package:archminton/screens/profileoptions/MyBookings.dart';
 import 'package:archminton/screens/profileoptions/Memberships.dart';
@@ -9,6 +10,7 @@ import 'package:archminton/screens/profileoptions/ShippingPolicy.dart';
 import 'package:archminton/screens/profileoptions/ContactUs.dart';
 import 'package:archminton/screens/profileoptions/CancellationAndRefunds.dart';
 import 'package:archminton/screens/profileoptions/About.dart';
+import 'package:archminton/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -32,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String address = '';
   String society = ''; // New property for society
   String profileImagePath = ''; // Profile image path
+  bool isLoggedIn = false; // Track login status
   
   // Text controllers for editing
   final TextEditingController _nameController = TextEditingController();
@@ -47,6 +50,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Set context for ApiService to enable automatic logout
+    ApiService.setContext(context);
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
@@ -58,21 +68,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+    
     setState(() {
-      name = prefs.getString('name') ?? 'N/A';
-      email = prefs.getString('email') ?? 'N/A';
-      phone = prefs.getString('phone') ?? 'N/A';
-      gender = prefs.getString('gender') ?? 'N/A';
-      if (gender.trim().isEmpty) {
+      isLoggedIn = token != null && token.isNotEmpty;
+      
+      if (isLoggedIn) {
+        name = prefs.getString('name') ?? 'N/A';
+        email = prefs.getString('email') ?? 'N/A';
+        phone = prefs.getString('phone') ?? 'N/A';
+        gender = prefs.getString('gender') ?? 'N/A';
+        if (gender.trim().isEmpty) {
+          gender = 'N/A';
+        }
+        address = prefs.getString('address') ?? 'N/A';
+        society = prefs.getString('society') ?? 'N/A'; // Load society
+        profileImagePath = prefs.getString('profileImagePath') ?? ''; // Load profile image path
+      } else {
+        // Guest user defaults
+        name = 'Guest User';
+        email = 'Not signed in';
+        phone = 'N/A';
         gender = 'N/A';
+        address = 'N/A';
+        society = 'N/A';
+        profileImagePath = '';
       }
-      address = prefs.getString('address') ?? 'N/A';
-      society = prefs.getString('society') ?? 'N/A'; // Load society
-      profileImagePath = prefs.getString('profileImagePath') ?? ''; // Load profile image path
     });
     
-    // Fetch society information from API
-    await _fetchUserSociety();
+    // Fetch society information from API only if logged in
+    if (isLoggedIn) {
+      await _fetchUserSociety();
+    }
   }
   
   Future<void> _fetchUserSociety() async {
@@ -128,10 +155,182 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // Clear all user-related data from SharedPreferences
     await prefs.remove('accessToken');
+    await prefs.remove('refreshToken');
+    await prefs.remove('userId');
+    await prefs.remove('email');
+    await prefs.remove('name');
+    await prefs.remove('phone');
+    await prefs.remove('gender');
+    await prefs.remove('user');
+    
+    print('🚪 User logged out - all data cleared');
+    
     if (context.mounted) {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MyApp()));
     }
+  }
+
+  Future<void> _deleteAccount() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Account'),
+          content: const Text(
+            'Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data, bookings, and account information.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text('Deleting account...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      try {
+        // Call the API service
+        final result = await ApiService.deleteUserAccount();
+
+        // Close loading dialog
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
+
+        if (result['success']) {
+          // Clear all user data
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.clear();
+          
+          if (context.mounted) {
+            // Show success message
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Account deleted successfully'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            
+            // Navigate to home screen
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const MyApp()),
+            );
+          }
+        } else {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to delete account: ${result['error'] ?? 'Unknown error'}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        // Close loading dialog
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error deleting account: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showLoginRequiredDialog(String feature) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.login, color: Colors.green, size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'Sign In Required',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'You need to sign in to $feature. Would you like to sign in now?',
+            style: const TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Later',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LoginScreen(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Sign In',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget buildProfileOption(IconData icon, String title, VoidCallback onTap, {Color iconColor = Colors.green}) {
@@ -158,14 +357,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.green.shade400, Colors.green.shade600],
+              colors: isLoggedIn 
+                ? [Colors.green.shade400, Colors.green.shade600]
+                : [Colors.grey.shade400, Colors.grey.shade600],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.green.withOpacity(0.3),
+                color: (isLoggedIn ? Colors.green : Colors.grey).withOpacity(0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),
@@ -178,26 +379,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 40,
-                    backgroundImage: profileImagePath.isNotEmpty
+                    backgroundImage: (isLoggedIn && profileImagePath.isNotEmpty)
                         ? FileImage(File(profileImagePath)) as ImageProvider
                         : const AssetImage('assets/images/profile.png'),
                   ),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: GestureDetector(
-                      onTap: _pickImage,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.green, width: 2),
+                  // Only show camera icon for logged-in users
+                  if (isLoggedIn)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: _pickImage,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.green, width: 2),
+                          ),
+                          child: Icon(Icons.camera_alt, color: Colors.green.shade600, size: 16),
                         ),
-                        child: Icon(Icons.camera_alt, color: Colors.green.shade600, size: 16),
                       ),
                     ),
-                  ),
                 ],
               ),
               const SizedBox(width: 20),
@@ -207,26 +410,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                     const SizedBox(height: 8),
-                    Text('Phone: $phone', style: const TextStyle(color: Colors.white70)),
-                    Text('Address: $address', style: const TextStyle(color: Colors.white70)),
-                    Text('Gender: $gender', style: const TextStyle(color: Colors.white70)),
-                    Text('Society: $society', style: const TextStyle(color: Colors.white70)), // Display society
+                    if (isLoggedIn) ...[
+                      Text('Phone: $phone', style: const TextStyle(color: Colors.white70)),
+                      Text('Address: $address', style: const TextStyle(color: Colors.white70)),
+                      Text('Gender: $gender', style: const TextStyle(color: Colors.white70)),
+                      Text('Society: $society', style: const TextStyle(color: Colors.white70)),
+                    ] else ...[
+                      const Text('Sign in to view your details', style: TextStyle(color: Colors.white70)),
+                      const Text('Browse venues and sports', style: TextStyle(color: Colors.white70)),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
         ),
-        Positioned(
-          top: 10,
-          right: 10,
-          child: IconButton(
-            icon: const Icon(Icons.edit, color: Colors.white),
-            onPressed: () async {
-              await _showEditProfileDialog();
-            },
+        // Only show edit button for logged-in users
+        if (isLoggedIn)
+          Positioned(
+            top: 10,
+            right: 10,
+            child: IconButton(
+              icon: const Icon(Icons.edit, color: Colors.white),
+              onPressed: () async {
+                await _showEditProfileDialog();
+              },
+            ),
           ),
-        ),
       ],
     );
   }
@@ -356,12 +566,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             buildIDCard(),
             const SizedBox(height: 30),
-            buildProfileOption(Icons.calendar_today_rounded, 'My Bookings', () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const MyBookingsScreen()));
-            }),
-            buildProfileOption(Icons.card_membership_rounded, 'Memberships', () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const MembershipsScreen()));
-            }),
+            
+            // Show sign-in button for guest users
+            if (!isLoggedIn) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade600, size: 24),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Sign in to access your bookings, memberships, and personalized features',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.login),
+                      label: const Text('Sign In'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+            ],
+            
+            // User-specific options (only show for logged-in users or modify behavior for guests)
+            if (isLoggedIn) ...[
+              buildProfileOption(Icons.calendar_today_rounded, 'My Bookings', () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const MyBookingsScreen()));
+              }),
+              buildProfileOption(Icons.card_membership_rounded, 'Memberships', () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const MembershipsScreen()));
+              }),
+            ] else ...[
+              buildProfileOption(Icons.calendar_today_rounded, 'My Bookings', () {
+                _showLoginRequiredDialog('view your bookings');
+              }),
+              buildProfileOption(Icons.card_membership_rounded, 'Memberships', () {
+                _showLoginRequiredDialog('view your memberships');
+              }),
+            ],
+            
+            // Common options available to all users
             buildProfileOption(Icons.question_answer_rounded, 'FAQ', () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const FAQScreen()));
             }),
@@ -386,22 +656,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
             buildProfileOption(Icons.info_outline_rounded, 'About', () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const AboutScreen()));
             }),
-            buildProfileOption(Icons.logout, 'Logout', () async {
-              await _logout();
-            }, iconColor: Colors.red),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () async {
-                await _showEditProfileDialog();
-              },
-              icon: const Icon(Icons.edit),
-              label: const Text('Edit Profile'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade600,
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            
+            // Show logout only for logged-in users
+            if (isLoggedIn) ...[
+              buildProfileOption(Icons.logout, 'Logout', () async {
+                await _logout();
+              }, iconColor: Colors.red),
+              buildProfileOption(Icons.delete_forever, 'Delete My Account', () async {
+                await _deleteAccount();
+              }, iconColor: Colors.red),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await _showEditProfileDialog();
+                },
+                icon: const Icon(Icons.edit),
+                label: const Text('Edit Profile'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: 20),
           ],
         ),

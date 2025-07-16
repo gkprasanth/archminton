@@ -40,20 +40,18 @@ class _BookscreenState extends State<Bookscreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('accessToken');
 
-      if (token == null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
-        return;
+      // Create headers with optional authorization
+      Map<String, String> headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
       }
 
       final response = await http.get(
         Uri.parse(apiUrl),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
