@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:archminton/screens/VerifyOTPScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../constants/constants.dart';
@@ -32,7 +33,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}/auth/forgot-password'),
+        Uri.parse('${AppConstants.baseUrl}/auth/forgotpassword/send-otp'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -50,7 +51,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pop(context);
+          // Fixed navigation: Remove const and pass email correctly
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VerifyOtpScreen(email: _emailController.text.trim()),
+            ),
+          );
         }
       } else {
         final data = jsonDecode(response.body);
@@ -221,4 +228,4 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
     );
   }
-} 
+}

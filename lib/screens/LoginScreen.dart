@@ -7,8 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:archminton/main.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-// import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+ 
 import 'ForgotPasswordScreen.dart';
 
 final String baseUrl = AppConstants.baseUrl;
@@ -73,12 +72,6 @@ class _LoginTabState extends State<LoginTab> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _isGoogleLoading = false;
-  // bool _isAppleLoading = false;
-
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-  );
 
   void _login() async {
     final email = _emailController.text.trim();
@@ -197,167 +190,6 @@ class _LoginTabState extends State<LoginTab> {
     print('   - gender: ${await prefs.getString('gender')}');
   }
 
-  Future<void> _signInWithGoogle() async {
-    setState(() => _isGoogleLoading = true);
-
-    try {
-      print('🔐 Starting Google Sign-In process...');
-      
-      // Sign out first to ensure fresh login
-      await _googleSignIn.signOut();
-      
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
-      if (googleUser == null) {
-        print('❌ Google Sign-In was cancelled by user');
-        return;
-      }
-
-      print('✅ Google Sign-In successful for: ${googleUser.email}');
-      
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      if (googleAuth.accessToken == null || googleAuth.idToken == null) {
-        throw Exception('Failed to get Google authentication tokens');
-      }
-
-      print('🔑 Google tokens received, sending to backend...');
-      
-      // Test connectivity first
-      final workingEndpoint = await ApiService.testConnectivity();
-      if (workingEndpoint == null) {
-        throw Exception('Cannot connect to server. Please check your internet connection.');
-      }
-      
-      final url = Uri.parse('$workingEndpoint/auth/google');
-      
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'idToken': googleAuth.idToken,
-          'accessToken': googleAuth.accessToken,
-        }),
-      ).timeout(const Duration(seconds: 30));
-
-      print('📡 Google Auth API Response:');
-      print('   - Status Code: ${response.statusCode}');
-      print('   - Response Body: ${response.body}');
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        print('✅ Google authentication successful');
-        
-        final user = data['data']['user'];
-        final accessToken = data['data']['accessToken'];
-        final refreshToken = data['data']['refreshToken'];
-        
-        await _saveUserData(user, accessToken, refreshToken);
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const BottomNavBar()),
-        );
-      } else {
-        String errorMessage = data['error'] ?? data['message'] ?? "Google Sign-In failed";
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
-      }
-    } catch (e, stackTrace) {
-      print('💥 Exception during Google Sign-In:');
-      print('   - Error: $e');
-      print('   - Stack trace: $stackTrace');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Google Sign-In failed: $e")),
-      );
-    } finally {
-      setState(() => _isGoogleLoading = false);
-    }
-  }
-
-  // Future<void> _signInWithApple() async {
-  //   // Only show Apple Sign-In on iOS
-  //   if (!Platform.isIOS) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text("Apple Sign-In is only available on iOS devices")),
-  //     );
-  //     return;
-  //   }
-
-  //   setState(() => _isAppleLoading = true);
-
-  //   try {
-  //     print('🍎 Starting Apple Sign-In process...');
-      
-  //     final credential = await SignInWithApple.getAppleIDCredential(
-  //       scopes: [
-  //         AppleIDAuthorizationScopes.email,
-  //         AppleIDAuthorizationScopes.fullName,
-  //       ],
-  //     );
-
-  //     print('✅ Apple Sign-In successful');
-      
-  //     // Test connectivity first
-  //     final workingEndpoint = await ApiService.testConnectivity();
-  //     if (workingEndpoint == null) {
-  //       throw Exception('Cannot connect to server. Please check your internet connection.');
-  //     }
-      
-  //     final url = Uri.parse('$workingEndpoint/auth/apple');
-      
-  //     final response = await http.post(
-  //       url,
-  //       headers: {'Content-Type': 'application/json'},
-  //       body: jsonEncode({
-  //         'identityToken': credential.identityToken,
-  //         'authorizationCode': credential.authorizationCode,
-  //         'userIdentifier': credential.userIdentifier,
-  //         'email': credential.email,
-  //         'givenName': credential.givenName,
-  //         'familyName': credential.familyName,
-  //       }),
-  //     ).timeout(const Duration(seconds: 30));
-
-  //     print('📡 Apple Auth API Response:');
-  //     print('   - Status Code: ${response.statusCode}');
-  //     print('   - Response Body: ${response.body}');
-
-  //     final data = jsonDecode(response.body);
-
-  //     if (response.statusCode == 200) {
-  //       print('✅ Apple authentication successful');
-        
-  //       final user = data['data']['user'];
-  //       final accessToken = data['data']['accessToken'];
-  //       final refreshToken = data['data']['refreshToken'];
-        
-  //       await _saveUserData(user, accessToken, refreshToken);
-
-  //       Navigator.pushReplacement(
-  //         context,
-  //         MaterialPageRoute(builder: (context) => const BottomNavBar()),
-  //       );
-  //     } else {
-  //       String errorMessage = data['error'] ?? data['message'] ?? "Apple Sign-In failed";
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text(errorMessage)),
-  //       );
-  //     }
-  //   } catch (e, stackTrace) {
-  //     print('💥 Exception during Apple Sign-In:');
-  //     print('   - Error: $e');
-  //     print('   - Stack trace: $stackTrace');
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text("Apple Sign-In failed: $e")),
-  //     );
-  //   } finally {
-  //     setState(() => _isAppleLoading = false);
-  //   }
-  // }
-
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -395,64 +227,7 @@ class _LoginTabState extends State<LoginTab> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          const Row(
-            children: [
-              Expanded(child: Divider()),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'OR',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Expanded(child: Divider()),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Google Sign-In Button
-          _isGoogleLoading
-              ? const CircularProgressIndicator()
-              : _buildSocialButton(
-                  "Continue with Google",
-                  Icons.g_mobiledata,
-                  Colors.red,
-                  _signInWithGoogle,
-                ),
-          const SizedBox(height: 12),
-          // Apple Sign-In Button (iOS only) - COMMENTED OUT
-          // if (Platform.isIOS)
-          //   _isAppleLoading
-          //       ? const CircularProgressIndicator()
-          //       : _buildSocialButton(
-          //           "Continue with Apple",
-          //           Icons.apple,
-          //           Colors.black,
-          //           _signInWithApple,
-          //         ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSocialButton(String text, IconData icon, Color color, VoidCallback onPressed) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: color),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        onPressed: onPressed,
-        icon: Icon(icon, color: color),
-        label: Text(
-          text,
-          style: TextStyle(fontSize: 16, color: color, fontWeight: FontWeight.w500),
-        ),
       ),
     );
   }
