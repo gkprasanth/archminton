@@ -245,7 +245,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   },
                 ),
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 12),
                 
                 // Verify OTP button
                 ElevatedButton(
@@ -277,7 +277,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                         ),
                 ),
                 
-                const SizedBox(height: 24),
+                // const SizedBox(height: 14),
                 
                 // Back to login
                 TextButton(
