@@ -50,14 +50,32 @@ class ApiService {
   
   // Centralized HTTP request handler that checks for 401 errors
   static Future<http.Response> _makeAuthenticatedRequest(
-    Future<http.Response> Function() request,
-  ) async {
+    Future<http.Response> Function() request, {
+    bool isBookingRequest = false,
+  }) async {
     try {
       final response = await request();
       
       // Check for 401 Unauthorized
       if (response.statusCode == 401) {
         print('🔐 Received 401 Unauthorized - token expired');
+        
+        // For booking requests, be more cautious about automatic logout
+        if (isBookingRequest) {
+          print('⚠️ 401 during booking - checking if booking succeeded before logout');
+          
+          // Try to parse the response to see if booking actually succeeded
+          try {
+            final responseData = json.decode(response.body);
+            if (responseData['success'] == true || responseData['data'] != null) {
+              print('✅ Booking appears to have succeeded despite 401 - not logging out');
+              return response;
+            }
+          } catch (e) {
+            print('❌ Could not parse booking response: $e');
+          }
+        }
+        
         await _performLogout();
         
         // Return the original response so the calling code can handle it
@@ -424,7 +442,7 @@ class ApiService {
         Uri.parse('$baseUrl/payments/verify'),
         headers: requestHeaders,
         body: json.encode(body),
-      ));
+      ), isBookingRequest: true);
       
       print('📡 Payment Verification Response Status: ${response.statusCode}');
       print('📄 Payment Verification Response Body: ${response.body}');
@@ -587,7 +605,7 @@ class ApiService {
         Uri.parse('$baseUrl/bookings'),
         headers: requestHeaders,
         body: json.encode(body),
-      ));
+      ), isBookingRequest: true);
       
       print('📡 Booking Response Status: ${response.statusCode}');
       print('📄 Booking Response Body: ${response.body}');
