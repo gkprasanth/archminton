@@ -2,7 +2,7 @@ name: archminton
 description: A new Flutter project.
 publish_to: 'none'
 
-version: 1.2.0+9
+version: 1.2.1+10
 
 environment:
   sdk: ^3.7.2
