@@ -4,7 +4,6 @@ import 'package:archminton/screens/LoginScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../main.dart'; // Added import for BottomNavBar
 
 class VenueScreen extends StatefulWidget {
   final Map<String, dynamic> venue;
@@ -94,19 +93,6 @@ class _VenueScreenState extends State<VenueScreen> {
         ),
         backgroundColor: colors.primary,
         foregroundColor: colors.onPrimary,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              // Fallback to main app if can't pop
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => const MyApp()),
-              );
-            }
-          },
-        ),
         // actions: [
         //   IconButton(
         //     icon: const Icon(Icons.favorite_border),

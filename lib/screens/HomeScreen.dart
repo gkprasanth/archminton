@@ -26,11 +26,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final String baseUrl = AppConstants.baseUrl;
   
-  // Banner carousel variables (exact copy from VenueScreen)
-  late final PageController _pageController;
-  int _currentPage = 0;
-  Timer? _timer;
-  
   final List<Map<String, String>> exploreItems = [
     {"text": "Learn", "image": "assets/images/explore-learn.jpg"},
     {"text": "Book and Play", "image": "assets/images/explore-book.jpg"},
@@ -48,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isLoadingBanners = true;
   bool hasError = false;
   String errorMessage = "";
+  int currentBannerIndex = 0;
   
 
 
@@ -133,7 +129,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.9);
     fetchVenues();
     fetchUserSubscriptions();
     fetchBannerImages();
@@ -149,8 +144,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     super.dispose();
-    _timer?.cancel();
-    _pageController.dispose();
   }
 
   Future<void> fetchVenues() async {
@@ -393,9 +386,6 @@ class _HomeScreenState extends State<HomeScreen> {
         isLoadingBanners = true;
       });
       
-      // Cancel any existing timer
-      _timer?.cancel();
-      
       // Fetch active banners from the API using ApiService
       final fetchedBanners = await ApiService.getActiveBanners();
       
@@ -407,14 +397,12 @@ class _HomeScreenState extends State<HomeScreen> {
           banners = fetchedBanners;
           isLoadingBanners = false;
         });
-        _startBannerAutoScroll();
       } else {
         print('🎨 No banners returned from API, using fallback');
         setState(() {
           banners = fallbackBanners;
           isLoadingBanners = false;
         });
-        _startBannerAutoScroll();
       }
       
     } catch (e, stackTrace) {
@@ -428,24 +416,10 @@ class _HomeScreenState extends State<HomeScreen> {
         banners = fallbackBanners;
         isLoadingBanners = false;
       });
-      _startBannerAutoScroll();
     }
   }
 
-  void _startBannerAutoScroll() {
-    if (banners.length <= 1) return;
 
-    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (_pageController.hasClients) {
-        _currentPage = (_currentPage + 1) % banners.length;
-        _pageController.animateToPage(
-          _currentPage,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOutQuint,
-        );
-      }
-    });
-  }
 
   Future<String?> _getUserName() async {
     final prefs = await SharedPreferences.getInstance();
@@ -781,11 +755,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBannerCarousel() {
     if (isLoadingBanners) {
       return Container(
-        height: 280,
-        margin: const EdgeInsets.symmetric(horizontal: 12),
+        height: 200,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
@@ -804,144 +778,93 @@ class _HomeScreenState extends State<HomeScreen> {
       return _buildBannerPlaceholder();
     }
 
-    // Get banner images as List<dynamic> to match VenueScreen exactly
-    List<dynamic> bannerImages = banners.map((banner) => 
-      banner['imageUrl'] ?? stockBannerImage
-    ).toList();
-
-    final colors = Theme.of(context).colorScheme;
-
-    return SizedBox(
-      height: 280,
-      child: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            itemCount: bannerImages.length,
-            onPageChanged: (index) => setState(() => _currentPage = index),
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 15,
+    return Column(
+      children: [
+        Container(
+          height: 200,
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: banners.length == 1
+              ? _buildSingleBanner(banners[0])
+              : PageView.builder(
+                  itemCount: banners.length,
+                  onPageChanged: (index) {
+                    if (mounted) {
+                      setState(() {
+                        currentBannerIndex = index;
+                      });
+                    }
+                  },
+                  itemBuilder: (context, index) {
+                    return _buildSingleBanner(banners[index]);
+                  },
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(25),
-                  child: Stack(
-                    children: [
-                      bannerImages[index] != null && 
-                      bannerImages[index].isNotEmpty &&
-                      _isValidImageUrl(bannerImages[index])
-                          ? Image.network(
-                              bannerImages[index],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (_, __, ___) => Container(
-                                decoration: const BoxDecoration(
-                                  image: DecorationImage(
-                                    image: NetworkImage('https://images.unsplash.com/photo-1723633236252-eb7badabb34c?q=80&w=3024&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'),
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.black.withOpacity(0.3),
-                                        Colors.transparent,
-                                      ],
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                    ),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.sports_tennis,
-                                      color: Colors.white,
-                                      size: 40,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Container(
-                              decoration: const BoxDecoration(
-                                image: DecorationImage(
-                                  image: NetworkImage('https://images.unsplash.com/photo-1723633236252-eb7badabb34c?q=80&w=3024&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.black.withOpacity(0.3),
-                                      Colors.transparent,
-                                    ],
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                  ),
-                                ),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.sports_tennis,
-                                    color: Colors.white,
-                                    size: 40,
-                                  ),
-                                ),
-                              ),
-                            ),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              colors.surface.withOpacity(0.6),
-                              colors.surface.withOpacity(0.1),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+        ),
+        if (banners.length > 1) ...[
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: banners.asMap().entries.map((entry) {
+              return Container(
+                width: currentBannerIndex == entry.key ? 20 : 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: currentBannerIndex == entry.key
+                      ? Colors.green
+                      : Colors.grey.withOpacity(0.5),
                 ),
               );
-            },
+            }).toList(),
           ),
-          if (bannerImages.length > 1)
-            Positioned(
-              bottom: 20,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(bannerImages.length, (index) {
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: _currentPage == index ? 24 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: _currentPage == index
-                          ? colors.primary
-                          : colors.onSurface.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  );
-                }),
-              ),
-            ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildSingleBanner(Map<String, dynamic> banner) {
+    final imageUrl = banner['imageUrl'] ?? stockBannerImage;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Image.network(
+        imageUrl,
+        width: double.infinity,
+        height: 200,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        },
+        errorBuilder: (_, __, ___) => _buildBannerPlaceholder(),
       ),
     );
   }
 
   Widget _buildBannerPlaceholder() {
     return Container(
-      height: 280,
+      height: 200,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
           colors: [
             Colors.blue.shade400,
@@ -982,6 +905,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+
 
   Widget _buildSubscriptionsSection() {
     // Check if we have any subscriptions to show
